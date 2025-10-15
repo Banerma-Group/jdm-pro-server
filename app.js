@@ -51,7 +51,7 @@ const corsOptions = function (req, callback) {
     return false;
   });
 
-  options.origin = isAllowedOrigin;
+  options.origin = '*';
   callback(null, options);
 };
 
