@@ -16,7 +16,7 @@ morgan.format('custom', ':method :url :status :res[content-length] - :response-t
 
 const allowedOrigins = [
   'http://localhost:3000',
-  'http://localhost:8080',
+  'https://jdm-pro-dashboard.vercel.app',
   'http://localhost:8081'
 ];
 
