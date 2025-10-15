@@ -4,9 +4,11 @@ const path = require('path');
 const { Readable } = require('stream');
 
 const asyncHandler = require('../../utils/async-handler');
-const { Media } = require('../../../db/models');
+const { Media, Op, User } = require('../../../db/models');
 const { serialize } = require('../../../db/serializers');
 const aws = require('../../services/aws'); // sizdagi upload/deleteObject va h.k.
+const qps = require('../../utils/qps')();
+const pagination = require('../../utils/pagination');
 
 const router = express.Router();
 
@@ -29,7 +31,7 @@ function bufferToStream(buffer) {
 }
 
 function buildS3Key(userId, originalName) {
-  const base = path.parse(originalName).name.replace(/[^\w.-]+/g, '-').slice(0, 60);
+  const base = path.parse(originalName).name.replace(/[^\w-]+/g, '-').slice(0, 60);
   const ext = path.extname(originalName) || '.jpg';
   const ts = Date.now();
   const uid = userId || 'anon';
@@ -45,29 +47,95 @@ function keyFromUrl(url) {
   }
 }
 
+/**
+ * 1) PRESIGN
+ * POST /media/presign
+ * Body: { items: [{ name, type, size }] }
+ * Return: { items: [{ key, url, contentType }] }
+ */
+router.post(
+  '/presign',
+  asyncHandler(async (req, res) => {
+    const items = Array.isArray(req.body?.items) ? req.body.items : [];
+    if (!items.length) return res.status(400).json({ error: 'items required' });
+
+    // Xavfsizlik: hajm va MIME tekshiruv (oddiy misol)
+    const MAX = 25 * 1024 * 1024;
+    for (const it of items) {
+      if (!/^image\//.test(it.type)) return res.status(415).json({ error: 'only images allowed' });
+      if (it.size > MAX) return res.status(413).json({ error: 'file too large' });
+    }
+
+    const out = [];
+    for (const it of items) {
+      const key = buildS3Key(req.user?.id, it.name);
+      // sizdagi getSignedUploadUrl: (path, props) -> signed URL
+      const url = await aws.getSignedUploadUrl(key, { ContentType: it.type });
+      out.push({ key, url, contentType: it.type, name: it.name });
+    }
+    res.json({ items: out });
+  })
+);
+
+/**
+ * 2) FINALIZE
+ * POST /media/finalize
+ * Body: { items: [{ key, name }] }
+ * Return: { items: [{ ok, item? | error? }] }
+ */
+router.post(
+  '/finalize',
+  asyncHandler(async (req, res) => {
+    const items = Array.isArray(req.body?.items) ? req.body.items : [];
+    if (!items.length) return res.status(400).json({ error: 'items required' });
+
+    const results = [];
+    for (const it of items) {
+      const exists = await aws.headObjectExists(it.key); // S3 da bor-yo'qligini tekshir
+      if (!exists) {
+        results.push({ ok: false, key: it.key, error: 'not uploaded' });
+        continue;
+      }
+      // public URL ni aniq yig'ib beramiz
+      const url = `https://${process.env.S3_BUCKET}.s3-${process.env.S3_REGION}.amazonaws.com/${it.key}`;
+
+      const media = await Media.create({
+        url,
+        name: it.name,
+        createdById: req.user?.id || 1,
+      });
+      results.push(media);
+    }
+
+    res.status(201).json({data: results});
+  })
+);
+
 // LIST
 router.get(
   '/',
   asyncHandler(async (req, res) => {
-    const page = Math.max(parseInt(req.query.page ?? '1', 10), 1);
-    const pageSize = Math.min(Math.max(parseInt(req.query.pageSize ?? '20', 10), 1), 100);
-    const offset = (page - 1) * pageSize;
-    const limit = pageSize;
+    const query = qps(req.query);
 
-    const order = [[req.query.sort || 'createdAt', (req.query.order || 'DESC').toUpperCase() === 'ASC' ? 'ASC' : 'DESC']];
-
-    const where = {};
+    query.order = [['created_at', 'DESC']];
     if (req.query.search) {
-      const { Op } = require('sequelize');
-      where[Op.or] = [
+      query.where[Op.or] = [
         { name: { [Op.iLike]: `%${req.query.search}%` } },
         { url:  { [Op.iLike]: `%${req.query.search}%` } },
       ];
     }
 
-    const { rows, count } = await Media.findAndCountAll({ where, order, offset, limit });
-    rows.pagination = { page, pageSize, total: count, totalPages: Math.ceil(count / pageSize) };
-    res.send(serialize(rows));
+    query.include = [
+      { model: User, as: 'user' },
+    ]
+
+    delete query.where.search
+    const { rows, count } = await Media.findAndCountAll(query);
+    const paginationData = pagination(query.limit, query.offset, count)
+
+    res.send({
+      data: rows, pagination: paginationData
+    });
   })
 );
 
@@ -102,22 +170,6 @@ router.post(
     });
 
     res.status(201).send(serialize(media));
-  })
-);
-
-// UPDATE (faqat name, xohlasangiz url ham qo‘shing)
-router.patch(
-  '/:id',
-  asyncHandler(async (req, res) => {
-    const media = await Media.findByPk(req.params.id);
-    if (!media) return res.sendStatus(404);
-
-    await media.update({
-      name: req.body?.name ?? media.name,
-      updatedById: req.user?.id || null,
-    });
-
-    res.send(serialize(media));
   })
 );
 

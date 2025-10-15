@@ -3,8 +3,14 @@ const { Model } = require('sequelize');
 
 module.exports = (sequelize, DataTypes) => {
   class Media extends Model {
-    static associate({ User }) {
+    static associate({ User, Vehicle, VehicleMedia }) {
       Media.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+      Media.belongsToMany(Vehicle, {
+        through: VehicleMedia,
+        as: 'vehicles',
+        foreignKey: 'media_id',
+        otherKey: 'vehicle_id',
+      });
     }
   }
 

@@ -30,4 +30,21 @@ const buildOrder = (req, defaultSort = 'createdAt') => {
   return [[sort, order]];
 };
 
-module.exports = { asyncRoute, runValidation, buildPagination, buildOrder };
+// helper: payloadni tozalash va through formatga keltirish
+function buildThroughPayload(images = []) {
+  // dublikatlarni olib tashlash + sort_order fallback
+  const uniq = new Map();
+  images.forEach((x, i) => {
+    const id = Number(x.id);
+    if (!id) return;
+    if (!uniq.has(id)) {
+      uniq.set(id, {
+        id,
+        VehicleMedia: { sort_order: Number(x.sort_order ?? i + 1) },
+      });
+    }
+  });
+  return Array.from(uniq.values());
+}
+
+module.exports = { asyncRoute, runValidation, buildPagination, buildOrder, buildThroughPayload };

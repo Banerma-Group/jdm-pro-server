@@ -15,7 +15,7 @@ const isTest = process.env.NODE_ENV === 'test';
 morgan.format('custom', ':method :url :status :res[content-length] - :response-time ms');
 
 const allowedOrigins = [
-  'http://localhost:4200',
+  'http://localhost:3000',
   'http://localhost:8080',
   'http://localhost:8081'
 ];

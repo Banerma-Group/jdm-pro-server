@@ -24,9 +24,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.879.0",
+    "@aws-sdk/client-s3": "^3.908.0",
     "@aws-sdk/lib-storage": "^3.879.0",
-    "@aws-sdk/s3-request-presigner": "3.592.0",
+    "@aws-sdk/s3-request-presigner": "^3.908.0",
     "@bekzod/sequelizeqp": "1.1.2",
     "@dsnp/parquetjs": "^1.8.7",
     "@telegraf/entity": "^0.7.0",
@@ -72,7 +72,7 @@
     "telegram": "2.26.22",
     "time-constants": "1.0.3",
     "util": "^0.12.5",
-    "uuid": "11.1.0",
+    "uuid": "^13.0.0",
     "yaml": "^2.8.1"
   },
   "devDependencies": {

@@ -9,6 +9,7 @@ const {
   CopyObjectCommand,
 } = require('@aws-sdk/client-s3');
 const { Readable } = require('stream');
+const { HeadObjectCommand } = require('@aws-sdk/client-s3'); 
 
 const client = new S3Client({
   region: process.env.S3_REGION,
@@ -24,11 +25,18 @@ const client = new S3Client({
   // computeChecksums: false,
 });
 
+const S3_PREFIX = process.env.S3_PREFIX ?? 'media/'; // ← sizda ishlatilgan prefix
+
+function withPrefix(key) {
+  // key allaqachon prefix bilan kelsa, takrorlamaymiz
+  return key.startsWith(S3_PREFIX) ? key : `${S3_PREFIX}${key}`;
+}
+
 function getSignedUploadUrl(path, props = {}) {
   const command = new PutObjectCommand({
     Bucket: process.env.S3_BUCKET,
     ACL: 'public-read',
-    Key: 'logistics/' + path,
+    Key: withPrefix(path),
     ...props,
   });
 
@@ -110,6 +118,16 @@ async function upload(newPath, transformedStream) {
   return `https://${process.env.S3_BUCKET}.s3-${process.env.S3_REGION}.amazonaws.com/${newPath}`;
 }
 
+async function headObjectExists(path) {
+  try {
+    const cmd = new HeadObjectCommand({ Bucket: process.env.S3_BUCKET, Key: path });
+    await client.send(cmd);
+    return true;
+  } catch (e) {
+    return false; // 404 yoki ruxsat yo'q bo'lsa false
+  }
+}
+
 module.exports = {
   getSignedUploadUrl,
   deleteObject,
@@ -117,4 +135,5 @@ module.exports = {
   moveObject,
   resizeAndUploadImage,
   upload,
+  headObjectExists
 };
