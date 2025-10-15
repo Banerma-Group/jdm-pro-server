@@ -24,6 +24,11 @@ router.get(
       ];
     }
 
+    // query.where = {
+    //   ...query.where,
+    //   publishedAt: { [Op.ne]: null }
+    // };
+
     query.include = [
       { model: User, as: 'createdBy' },
       { model: User, as: 'updatedBy' },

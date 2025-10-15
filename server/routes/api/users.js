@@ -28,7 +28,7 @@ router.get(
     if (!user) {
       return res.sendStatus(404);
     }
-    res.send(serialize(user));
+    res.send({data: user});
   })
 );
 
