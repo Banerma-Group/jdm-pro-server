@@ -16,8 +16,8 @@ morgan.format('custom', ':method :url :status :res[content-length] - :response-t
 
 const allowedOrigins = [
   'http://localhost:3000',
-  'https://jdm-pro-dashboard.vercel.app',
-  'http://localhost:8081'
+  'http://localhost:3001',
+  'https://jdm-pro-dashboard.vercel.app'
 ];
 
 const corsOptions = function (req, callback) {

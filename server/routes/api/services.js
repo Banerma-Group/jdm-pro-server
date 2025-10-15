@@ -1,7 +1,7 @@
 const express = require('express');
 const asyncHandler = require('../../utils/async-handler');
 const { Service, User, Op } = require('../../../db/models');
-const { serialize, deserialize } = require('../../../db/serializers');
+const { deserialize } = require('../../../db/serializers');
 const pagination = require('../../utils/pagination');
 const qps = require('../../utils/qps')();
 
@@ -12,7 +12,6 @@ router.get(
   '/',
   asyncHandler(async (req, res) => {
     const query = qps(req.query);
-    query.where = { ...query.where };
 
     if (req.query.search) {
       query.where[Op.or] = [
@@ -21,16 +20,16 @@ router.get(
         { icon:  { [Op.iLike]: `%${req.query.search}%` } },
       ];
     }
-    if (req.query.locale) query.where.locale = req.query.locale;
 
     query.include = [
       { model: User, as: 'createdBy' },
       { model: User, as: 'updatedBy' },
     ];
 
+    delete query.where.search
     const { rows, count } = await Service.findAndCountAll(query);
-    rows.pagination = pagination(query.limit, query.offset, count);
-    res.send(serialize(rows));
+    
+    res.send({data: rows, pagination: pagination(query.limit, query.offset, count)});
   })
 );
 
@@ -45,7 +44,7 @@ router.get(
       ],
     });
     if (!row) return res.sendStatus(404);
-    res.send(serialize(row));
+    res.send({data: row});
   })
 );
 
@@ -57,7 +56,7 @@ router.post(
     json.createdById = req.user?.id || null;
 
     const created = await Service.create(json);
-    res.status(201).send(serialize(created));
+    res.status(201).send({data: created});
   })
 );
 
@@ -71,7 +70,7 @@ router.patch(
 
     json.updatedById = req.user?.id || null;
     await row.update(json);
-    res.send(serialize(row));
+    res.send({data: row});
   })
 );
 
