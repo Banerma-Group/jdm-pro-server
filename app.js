@@ -26,21 +26,22 @@ const corsOptions = function (req, callback) {
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     exposedHeaders: true,
-    allowedHeaders: [
-      'X-Requested-With',
-      'X-HTTP-Method-Override',
-      'Content-Type',
-      'Accept',
-      'Cookie',
-      'Authorization',
-      'user-locale',
-      'X-Device-Id',
-      'Idempotency-Key',
-      'X-Device-Model',
-      'X-Device-Platform',
-      'X-Device-UA',
-      'Referer'
-    ],
+    allowedHeaders: '*',
+    // allowedHeaders: [
+    //   'X-Requested-With',
+    //   'X-HTTP-Method-Override',
+    //   'Content-Type',
+    //   'Accept',
+    //   'Cookie',
+    //   'Authorization',
+    //   'user-locale',
+    //   'X-Device-Id',
+    //   'Idempotency-Key',
+    //   'X-Device-Model',
+    //   'X-Device-Platform',
+    //   'X-Device-UA',
+    //   'Referer'
+    // ],
   };
 
   const requestOrigin = req.header('Origin');
