@@ -34,13 +34,11 @@ const corsOptions = function (req, callback) {
       'Authorization',
       'user-locale',
       'X-Device-Id',
+      'Idempotency-Key',
       'X-Device-Model',
       'X-Device-Platform',
       'X-Device-UA',
-      'X-Track',
-      'X-Track-Event',
-      'X-Track-Message',
-      'X-Track-Meta'
+      'Referer'
     ],
   };
 
