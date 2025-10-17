@@ -1,9 +1,9 @@
 const express = require('express');
 const asyncHandler = require('../../utils/async-handler');
 const { Vehicle, User, Op, sequelize, Media, VehicleMedia } = require('../../../db/models');
-const { serialize, deserialize } = require('../../../db/serializers');
+const aws = require('../../services/aws'); // sizdagi upload/deleteObject va h.k.
 const pagination = require('../../utils/pagination');
-const { buildThroughPayload } = require('../../utils/_helpers');
+const { keyFromUrl } = require('../../utils/_helpers');
 const qps = require('../../utils/qps')();
 
 const router = express.Router();
@@ -200,6 +200,48 @@ router.delete(
     const row = await Vehicle.findByPk(req.params.id);
     if (!row) return res.sendStatus(404);
     await row.destroy();
+    res.sendStatus(204);
+  })
+);
+
+// BULK DELETE (S3 + DB + Pivot)
+router.post(
+  '/bulk-delete',
+  asyncHandler(async (req, res) => {
+    const { ids } = req.body; // [1, 2, 3, ...]
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: 'Invalid or empty IDs array' });
+    }
+
+    const vehicles = await Vehicle.findAll({
+      where: { id: ids },
+    });
+
+    if (!vehicles.length) {
+      return res.status(404).json({ message: 'No vehicle found for given IDs' });
+    }
+
+    const keys = vehicles
+      .map((m) => keyFromUrl(m.url))
+      .filter(Boolean);
+
+    if (keys.length) {
+      try {
+        await aws.deleteObjects(keys); // AWS helper function (pastda)
+      } catch (err) {
+        console.error('S3 bulk delete error:', err);
+      }
+    }
+
+    await VehicleMedia.destroy({
+      where: { vehicle_id: ids },
+    });
+
+    await Vehicle.destroy({
+      where: { id: ids },
+    });
+
     res.sendStatus(204);
   })
 );

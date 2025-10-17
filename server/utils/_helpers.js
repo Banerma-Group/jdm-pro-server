@@ -1,4 +1,7 @@
 const { validationResult } = require('express-validator');
+const multer = require('multer');
+const path = require('path');
+const { Readable } = require('stream');
 
 // Sizdagi async wrapper’ga o‘xshash soddalashtirilgan versiya:
 const asyncRoute = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
@@ -47,4 +50,48 @@ function buildThroughPayload(images = []) {
   return Array.from(uniq.values());
 }
 
-module.exports = { asyncRoute, runValidation, buildPagination, buildOrder, buildThroughPayload };
+// ---- Multer (memory) ----
+const uploadMulter = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  fileFilter: (req, file, cb) => {
+    const ok = /^image\/(png|jpe?g|webp|gif|svg\+xml)$/.test(file.mimetype);
+    cb(ok ? null : new Error('Unsupported file type'), ok);
+  },
+});
+
+function bufferToStream(buffer) {
+  const rs = new Readable();
+  rs._read = () => {};
+  rs.push(buffer);
+  rs.push(null);
+  return rs;
+}
+
+function buildS3Key(originalName) {
+  const base = path.parse(originalName).name.replace(/[^\w-]+/g, '-').slice(0, 60);
+  const ext = path.extname(originalName) || '.jpg';
+  const ts = Date.now();
+  return `jdm/${ts}-${base}${ext}`;
+}
+
+function keyFromUrl(url) {
+  try {
+    const u = new URL(url);
+    return decodeURIComponent(u.pathname.replace(/^\/+/, ''));
+  } catch {
+    return null;
+  }
+}
+
+module.exports = { 
+  asyncRoute, 
+  runValidation, 
+  buildPagination, 
+  buildOrder, 
+  buildThroughPayload, 
+  keyFromUrl,
+  uploadMulter, 
+  bufferToStream, 
+  buildS3Key
+};

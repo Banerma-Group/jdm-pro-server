@@ -1,7 +1,4 @@
 const express = require('express');
-const multer = require('multer');
-const path = require('path');
-const { Readable } = require('stream');
 
 const asyncHandler = require('../../utils/async-handler');
 const { Media, Op, User, VehicleMedia } = require('../../../db/models');
@@ -9,43 +6,9 @@ const { serialize } = require('../../../db/serializers');
 const aws = require('../../services/aws'); // sizdagi upload/deleteObject va h.k.
 const qps = require('../../utils/qps')();
 const pagination = require('../../utils/pagination');
+const { buildS3Key, bufferToStream, keyFromUrl, uploadMulter } = require('../../utils/_helpers');
 
 const router = express.Router();
-
-// ---- Multer (memory) ----
-const uploadMulter = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
-  fileFilter: (req, file, cb) => {
-    const ok = /^image\/(png|jpe?g|webp|gif|svg\+xml)$/.test(file.mimetype);
-    cb(ok ? null : new Error('Unsupported file type'), ok);
-  },
-});
-
-function bufferToStream(buffer) {
-  const rs = new Readable();
-  rs._read = () => {};
-  rs.push(buffer);
-  rs.push(null);
-  return rs;
-}
-
-function buildS3Key(userId, originalName) {
-  const base = path.parse(originalName).name.replace(/[^\w-]+/g, '-').slice(0, 60);
-  const ext = path.extname(originalName) || '.jpg';
-  const ts = Date.now();
-  const uid = userId || 'anon';
-  return `media/${uid}/${ts}-${base}${ext}`;
-}
-
-function keyFromUrl(url) {
-  try {
-    const u = new URL(url);
-    return decodeURIComponent(u.pathname.replace(/^\/+/, ''));
-  } catch {
-    return null;
-  }
-}
 
 /**
  * 1) PRESIGN
@@ -68,7 +31,7 @@ router.post(
 
     const out = [];
     for (const it of items) {
-      const key = buildS3Key(req.user?.id, it.name);
+      const key = buildS3Key(it.name);
       // sizdagi getSignedUploadUrl: (path, props) -> signed URL
       const url = await aws.getSignedUploadUrl(key, { ContentType: it.type });
       out.push({ key, url, contentType: it.type, name: it.name });
@@ -156,7 +119,7 @@ router.post(
   asyncHandler(async (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'file is required' });
 
-    const key = buildS3Key(req.user?.id, req.file.originalname);
+    const key = buildS3Key(req.file.originalname);
     const stream = bufferToStream(req.file.buffer);
 
     // Agar resize kerak bo‘lsa, shu yerda o‘rnating:
