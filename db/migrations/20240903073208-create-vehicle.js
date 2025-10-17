@@ -23,7 +23,16 @@ module.exports = {
       created_at: { type: Sequelize.DATE, allowNull: true },
       updated_at: { type: Sequelize.DATE, allowNull: true },
       published_at: { type: Sequelize.DATE, allowNull: true },
-
+      youtube_cover_id: {
+        type: Sequelize.INTEGER,
+        allowNull: true,
+        references: {
+          model: 'media', // sizning Media jadval nomi
+          key: 'id',
+        },
+        onUpdate: 'CASCADE',
+        onDelete: 'SET NULL',
+      },
       created_by_id: {
         type: Sequelize.INTEGER, allowNull: true,
         references: { model: 'users', key: 'id' },

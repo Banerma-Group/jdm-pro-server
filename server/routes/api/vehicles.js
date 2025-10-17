@@ -36,6 +36,10 @@ router.get(
         as: 'images',
         through: { attributes: ['sort_order'] }, // pivotdan faqat sort_order oling
       },
+      {
+        model: Media,
+        as: 'youtubeCover',
+      },
     ];
 
     delete query.where.search
@@ -67,6 +71,10 @@ router.get('/:id', asyncHandler(async (req, res) => {
         model: Media,
         as: 'images',
         through: { attributes: ['sort_order'] }, // pivotdan faqat sort_order oling
+      },
+      {
+        model: Media,
+        as: 'youtubeCover',
       },
     ],
   });

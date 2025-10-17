@@ -59,6 +59,7 @@ const Vehicle = new Serializer('vehicles', {
   ],
 
   // Munosabatlar — faqat ID yuborish kerak bo‘lsa:
+  youtubeCover: { ref: 'id' },
   createdBy: { ref: 'id' },
   updatedBy: { ref: 'id' },
 

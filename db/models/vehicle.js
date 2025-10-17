@@ -13,6 +13,11 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: 'vehicle_id',
         otherKey: 'media_id',
       });
+      
+      Vehicle.belongsTo(Media, {
+        as: 'youtubeCover',
+        foreignKey: 'youtube_cover_id', // yangi ustun
+      });
     }
   }
 
