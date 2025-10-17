@@ -14,9 +14,6 @@ const base = {
     timestamps: true,
   },
   retry: { max: 3 }, // transient errors
-  dialectOptions: {
-    ssl: { require: true, rejectUnauthorized: false }
-  }
 };
 
 module.exports = {
@@ -40,5 +37,8 @@ module.exports = {
   production: {
     ...base,
     logging: false, // or a custom logger if needed
+    dialectOptions: {
+      ssl: { require: true, rejectUnauthorized: false }
+    }
   },
 };
