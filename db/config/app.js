@@ -14,6 +14,9 @@ const base = {
     timestamps: true,
   },
   retry: { max: 3 }, // transient errors
+  dialectOptions: {
+    ssl: { require: true, rejectUnauthorized: false }
+  }
 };
 
 module.exports = {
