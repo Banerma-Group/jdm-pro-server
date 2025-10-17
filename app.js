@@ -1,14 +1,10 @@
-require('dotenv').config();
-
 const express = require('express');
 const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
-const compression = require('compression');
-const zlib = require('zlib');
+const helmet = require('helmet');
 const i18n = require('./server/services/i18n-config');
 const errorHandler = require('./server/middleware/error-handler');
-// const bot = require('./server/bot-app/index');
 
 const isTest = process.env.NODE_ENV === 'test';
 
@@ -27,22 +23,20 @@ const corsOptions = function (req, callback) {
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     exposedHeaders: true,
-    allowedHeaders: '*',
-    // allowedHeaders: [
-    //   'X-Requested-With',
-    //   'X-HTTP-Method-Override',
-    //   'Content-Type',
-    //   'Accept',
-    //   'Cookie',
-    //   'Authorization',
-    //   'user-locale',
-    //   'X-Device-Id',
-    //   'Idempotency-Key',
-    //   'X-Device-Model',
-    //   'X-Device-Platform',
-    //   'X-Device-UA',
-    //   'Referer'
-    // ],
+    allowedHeaders: [
+      'X-Requested-With',
+      'X-HTTP-Method-Override',
+      'Content-Type',
+      'Access-Control-Allow-Origin',
+      'Access-Control-Allow-Methods',
+      'Access-Control-Allow-Credentials',
+      'Access-Control-Allow-Headers',
+      'Accept',
+      'Cookie',
+      'Authorization',
+      'user-locale',
+      'Idempotency-Key',
+    ],
   };
 
   const requestOrigin = req.header('Origin');
@@ -53,7 +47,7 @@ const corsOptions = function (req, callback) {
     return false;
   });
 
-  options.origin = '*';
+  options.origin = isAllowedOrigin;
   callback(null, options);
 };
 
@@ -66,20 +60,13 @@ app.set('query parser', 'extended');
 app.set('trust proxy', true);
 
 // Middleware
+app.use(helmet());
 if (!isTest) {
   app.use(morgan('custom'));
 }
 
-app.use(
-  compression({
-    threshold: 1024, // compress responses over 1kb
-    brotli: { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 5 } }, // enable Brotli with moderate quality
-  })
-);
-
 app.use(cookieParser());
 app.use(i18n.init);
-app.use(cors(corsOptions));
 
 // Body parsers (no need for body-parser package)
 app.use(express.urlencoded({ extended: false }));
@@ -91,28 +78,18 @@ app.use(
   })
 );
 
-// // Bot webhook
-// app.use(bot.webhookCallback('/api/webhook_telegram'));
-
-// Bot webhook (prod only)
-if (process.env.NODE_ENV === 'production') {
-  // app.use(bot.webhookCallback('/api/webhook_telegram'));
-}
+// CORS
+app.use(cors(corsOptions));
 
 // Routes
 app.use(require('./server/routes'));
 
-// Health check
-app.get('/health', async (req, res) => {
-  // const webhookInfo = await bot.telegram.getWebhookInfo();
-  // if (webhookInfo.url === 'https://logistics-backend-uufl.onrender.com/api/webhook_telegram') {
-    res.status(200).send('Server are ready to receive traffic');
-  // } else {
-  //   res.status(503).send('Webhook is not ready or there are pending updates');
-  // }
-});
-
 // Global error handler
 app.use(errorHandler);
+
+// Health check
+app.get('/health', async (req, res) => {
+  res.status(200).send('Bot and webhook are ready to receive traffic');
+});
 
 module.exports = app;

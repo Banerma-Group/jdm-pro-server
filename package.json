@@ -48,6 +48,7 @@
     "form-data": "^4.0.4",
     "handlebars": "4.7.8",
     "handlebars-async-helpers": "1.0.6",
+    "helmet": "^8.1.0",
     "husky": "^9.1.7",
     "i18n": "^0.15.1",
     "input": "^1.0.1",
