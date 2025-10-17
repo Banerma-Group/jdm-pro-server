@@ -29,6 +29,7 @@ const corsOptions = function (req, callback) {
       'Content-Type',
       'Accept',
       'Cookie',
+      'Origin',
       'Authorization',
       'Sec-Ch-Ua',
       'Sec-Ch-Ua-Mobile',
@@ -47,7 +48,7 @@ const corsOptions = function (req, callback) {
     return false;
   });
 
-  options.origin = isAllowedOrigin;
+  options.origin = true;
   callback(null, options);
 };
 
