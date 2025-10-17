@@ -4,7 +4,7 @@ const path = require('path');
 const { Readable } = require('stream');
 
 const asyncHandler = require('../../utils/async-handler');
-const { Media, Op, User } = require('../../../db/models');
+const { Media, Op, User, VehicleMedia } = require('../../../db/models');
 const { serialize } = require('../../../db/serializers');
 const aws = require('../../services/aws'); // sizdagi upload/deleteObject va h.k.
 const qps = require('../../utils/qps')();
@@ -185,6 +185,54 @@ router.delete(
       try { await aws.deleteObject(key); } catch (e) { /* log for diagnostics */ }
     }
     await media.destroy();
+    res.sendStatus(204);
+  })
+);
+
+router.post(
+  '/bulk-delete',
+  asyncHandler(async (req, res) => {
+    const { ids } = req.body; // [1, 2, 3, ...]
+
+    // 1️⃣ Validatsiya
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: 'Invalid or empty IDs array' });
+    }
+
+    // 2️⃣ Medialarni topamiz (DB)
+    const medias = await Media.findAll({
+      where: { id: ids },
+    });
+
+    if (!medias.length) {
+      return res.status(404).json({ message: 'No media found for given IDs' });
+    }
+
+    // 3️⃣ AWS S3 keys tayyorlash
+    const keys = medias
+      .map((m) => keyFromUrl(m.url))
+      .filter(Boolean);
+
+    // 4️⃣ AWS S3 dan fayllarni o‘chirish
+    if (keys.length) {
+      try {
+        await aws.deleteObjects(keys); // AWS helper function (pastda)
+      } catch (err) {
+        console.error('S3 bulk delete error:', err);
+      }
+    }
+
+    // 5️⃣ Pivot (VehicleMedia) dan bog‘lanmalarni tozalash
+    await VehicleMedia.destroy({
+      where: { media_id: ids },
+    });
+
+    // 6️⃣ Media jadvalidan yozuvlarni o‘chirish
+    await Media.destroy({
+      where: { id: ids },
+    });
+
+    // 7️⃣ Javob qaytarish
     res.sendStatus(204);
   })
 );

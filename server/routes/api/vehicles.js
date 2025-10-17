@@ -41,8 +41,20 @@ router.get(
 
     delete query.where.search
     const { rows, count } = await Vehicle.findAndCountAll(query);
-    
-    res.send({data: rows, pagination: pagination(query.limit, query.offset, count)});
+
+    const data = rows.map(row => {
+      const json = row.toJSON();
+
+      if (Array.isArray(json.images)) {
+        json.images = json.images.map(img => {
+          const { VehicleMedia, ...rest } = img;
+          return { ...rest, sort_order: VehicleMedia?.sort_order ?? null };
+        });
+      }
+
+      return json;
+    });
+    res.send({data, pagination: pagination(query.limit, query.offset, count)});
   })
 );
 
@@ -139,16 +151,22 @@ router.patch('/:id', asyncHandler(async (req, res) => {
 
     await vehicle.update(attrs, { transaction: t });
 
-    if (Array.isArray(images) && images.length) {
-      // eski bog'larni almashtiramiz va sort_order ni saqlaymiz
-      await vehicle.setImages([], { transaction: t });
-      for (const img of images) {
-        await vehicle.addImage(Number(img.id), {
-          through: { sort_order: Number(img.sort_order ?? 1) },
-          transaction: t,
-        });
+      if (images?.length) {
+        // sanitize: faqat id/sort_order
+        const seen = new Set();
+        const rows = images
+          .map((x, i) => ({
+            vehicle_id: vehicle.id,
+            media_id: Number(x?.id),
+            sortOrder: Number(x?.sort_order ?? i + 1),
+          }))
+          .filter((r) => Number.isFinite(r.media_id) && !seen.has(r.media_id) && seen.add(r.media_id));
+
+        if (rows.length) {
+          await VehicleMedia.destroy({ where: { vehicle_id: vehicle.id }, transaction: t });
+          await VehicleMedia.bulkCreate(rows, { transaction: t });
+        }
       }
-    }
 
     return vehicle;
   });
