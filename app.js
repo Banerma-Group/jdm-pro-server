@@ -18,6 +18,7 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3001',
   'https://jdm-pro-dashboard.vercel.app',
+  'https://jdm-pro-dashboard.vercel.app/',
   'https://jdm-pro-server.onrender.com'
 ];
 
