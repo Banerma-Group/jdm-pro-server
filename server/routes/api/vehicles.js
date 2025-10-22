@@ -43,6 +43,7 @@ router.get(
     ];
 
     delete query.where.search
+    delete query.where.locale
     const { rows, count } = await Vehicle.findAndCountAll(query);
 
     const data = rows.map(row => {
