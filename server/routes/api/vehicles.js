@@ -165,28 +165,43 @@ router.patch('/:id', asyncHandler(async (req, res) => {
     const vehicle = await Vehicle.findByPk(id, { transaction: t });
     if (!vehicle) return res.status(404).send({ error: 'Vehicle not found' });
 
+    const previousCoverId = vehicle.youtube_cover_id;
+    let newCoverId = null;
+
     if (youtubeCover && youtubeCover.id) {
-      attrs.youtube_cover_id = youtubeCover.id;
+      newCoverId = youtubeCover.id;
+      attrs.youtube_cover_id = newCoverId;
+    } else if (youtubeCover === null || youtubeCover === undefined) {
+      // agar frontda youtubeCover umuman yo'q yoki null bo'lsa — null qilib yangilaymiz
+      attrs.youtube_cover_id = null;
     }
 
     await vehicle.update(attrs, { transaction: t });
 
-      if (images?.length) {
-        // sanitize: faqat id/sort_order
-        const seen = new Set();
-        const rows = images
-          .map((x, i) => ({
-            vehicle_id: vehicle.id,
-            media_id: Number(x?.id),
-            sortOrder: Number(x?.sort_order ?? i + 1),
-          }))
-          .filter((r) => Number.isFinite(r.media_id) && !seen.has(r.media_id) && seen.add(r.media_id));
+    // 🔹 agar cover olib tashlangan bo‘lsa (va avval cover mavjud bo‘lgan bo‘lsa)
+    if (!newCoverId && previousCoverId) {
+      await Media.destroy({
+        where: { id: previousCoverId },
+        transaction: t,
+      });
+    }
 
-        if (rows.length) {
-          await VehicleMedia.destroy({ where: { vehicle_id: vehicle.id }, transaction: t });
-          await VehicleMedia.bulkCreate(rows, { transaction: t });
-        }
+    if (images?.length) {
+      // sanitize: faqat id/sort_order
+      const seen = new Set();
+      const rows = images
+        .map((x, i) => ({
+          vehicle_id: vehicle.id,
+          media_id: Number(x?.id),
+          sortOrder: Number(x?.sort_order ?? i + 1),
+        }))
+        .filter((r) => Number.isFinite(r.media_id) && !seen.has(r.media_id) && seen.add(r.media_id));
+
+      if (rows.length) {
+        await VehicleMedia.destroy({ where: { vehicle_id: vehicle.id }, transaction: t });
+        await VehicleMedia.bulkCreate(rows, { transaction: t });
       }
+    }
 
     return vehicle;
   });
