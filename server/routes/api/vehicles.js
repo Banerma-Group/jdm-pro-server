@@ -90,6 +90,8 @@ router.get('/:id', asyncHandler(async (req, res) => {
     });
   }
 
+  delete json.youtube_cover_id;
+
   res.send({ data: json });
 }));
 
@@ -98,9 +100,13 @@ router.post(
   '/',
   asyncHandler(async (req, res) => {
     const body = req.body || {};
-    const { images = [], ...attrs } = body;
+    const { images = [], youtubeCover, ...attrs } = body;
 
     attrs.createdById = req.user?.id || null;
+
+    if (youtubeCover && youtubeCover.id) {
+      attrs.youtube_cover_id = youtubeCover.id;
+    }
 
     const created = await sequelize.transaction(async (t) => {
       const vehicle = await Vehicle.create(attrs, { transaction: t });
@@ -133,6 +139,7 @@ router.post(
           as: 'images',
           through: { attributes: ['sort_order'] },
         },
+        { model: Media, as: 'youtubeCover' },
       ],
     });
 
@@ -143,18 +150,24 @@ router.post(
         return { ...rest, sort_order: VehicleMedia?.sort_order ?? null };
       });
     }
-
+    delete json.youtube_cover_id;
+    
     res.status(201).send({ data: json });
   })
 );
+
 // UPDATE Vehicle + replace images order (PATCH)
 router.patch('/:id', asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { images = [], ...attrs } = req.body || {};
+  const { images = [], youtubeCover, ...attrs } = req.body || {};
 
   const updated = await sequelize.transaction(async (t) => {
     const vehicle = await Vehicle.findByPk(id, { transaction: t });
     if (!vehicle) return res.status(404).send({ error: 'Vehicle not found' });
+
+    if (youtubeCover && youtubeCover.id) {
+      attrs.youtube_cover_id = youtubeCover.id;
+    }
 
     await vehicle.update(attrs, { transaction: t });
 
@@ -179,19 +192,24 @@ router.patch('/:id', asyncHandler(async (req, res) => {
   });
 
   const withImages = await Vehicle.findByPk(updated.id, {
-    include: [{ model: Media, as: 'images', through: { attributes: ['sort_order'] } }],
+    include: [
+      { model: Media, as: 'images', through: { attributes: ['sort_order'] } },
+      { model: Media, as: 'youtubeCover' },
+    ],
   });
 
   const json = withImages.toJSON();
-    if (Array.isArray(json.images)) {
+  if (Array.isArray(json.images)) {
       json.images = json.images.map(img => {
         const { VehicleMedia, ...rest } = img;
         return { ...rest, sort_order: VehicleMedia?.sort_order ?? null };
       });
-    }
+  }
+  
+  delete json.youtube_cover_id;
+  
   res.send({ data: json });
 }));
-
 
 // DELETE
 router.delete(
