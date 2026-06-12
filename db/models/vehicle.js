@@ -3,9 +3,10 @@ const { Model } = require('sequelize');
 
 module.exports = (sequelize, DataTypes) => {
   class Vehicle extends Model {
-    static associate({ User, Media, VehicleMedia }) {
+    static associate({ User, Media, VehicleMedia, Listing }) {
       Vehicle.belongsTo(User, { as: 'createdBy', foreignKey: 'created_by_id' });
       Vehicle.belongsTo(User, { as: 'updatedBy', foreignKey: 'updated_by_id' });
+      Vehicle.belongsTo(Listing, { as: 'crawlerListing', foreignKey: 'crawlerListingId' });
 
       Vehicle.belongsToMany(Media, {
         through: VehicleMedia,           // yoki 'vehicle_media' deb string ham bo‘ladi
@@ -85,6 +86,10 @@ module.exports = (sequelize, DataTypes) => {
       },
       locale: {
         type: DataTypes.ENUM('en', 'ja'),
+        allowNull: true,
+      },
+      crawlerListingId: {
+        type: DataTypes.UUID,
         allowNull: true,
       },
     },

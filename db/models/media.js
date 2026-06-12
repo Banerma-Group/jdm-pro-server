@@ -22,7 +22,7 @@ module.exports = (sequelize, DataTypes) => {
         autoIncrement: true,
       },
       url: {
-        type: DataTypes.STRING(255),
+        type: DataTypes.TEXT,
         allowNull: false,
       },
       name: {
