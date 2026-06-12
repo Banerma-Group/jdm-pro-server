@@ -1,29 +1,34 @@
-const { FlatCompat } = require('@eslint/eslintrc');
-const nPlugin = require('eslint-plugin-n');
+const js = require('@eslint/js');
+const prettierConfig = require('eslint-config-prettier');
 const prettierPlugin = require('eslint-plugin-prettier');
 
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
+module.exports = (async () => {
+  const nPlugin = (await import('eslint-plugin-n')).default;
 
-module.exports = [
-  ...compat.extends('eslint:recommended'),
-  ...compat.extends('plugin:n/recommended'),
-  ...compat.extends('prettier'),
-  {
-    plugins: { prettier: prettierPlugin, n: nPlugin },
-    languageOptions: {
-      ecmaVersion: 12,
-      sourceType: 'module',
+  return [
+    js.configs.recommended,
+    nPlugin.configs['flat/recommended'],
+    prettierConfig,
+    {
+      plugins: {
+        prettier: prettierPlugin,
+      },
+      languageOptions: {
+        ecmaVersion: 2021,
+        sourceType: 'commonjs',
+      },
+      rules: {
+        'prettier/prettier': 'error',
+        'no-console': 'warn',
+        'no-unused-vars': 'warn',
+      },
     },
-    env: {
-      es2021: true,
-      node: true,
+    {
+      files: ['eslint.config.js'],
+      rules: {
+        'n/no-unpublished-import': 'off',
+        'n/no-unpublished-require': 'off',
+      },
     },
-    rules: {
-      'prettier/prettier': 'error',
-      'no-console': 'warn',
-      'no-unused-vars': 'warn',
-    },
-  },
-];
+  ];
+})();
