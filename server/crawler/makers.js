@@ -10,9 +10,24 @@ function normalizeDisplayText(value) {
     .trim();
 }
 
+// Collapses cosmetic differences (case, spaces, katakana middle dots) so that
+// the same maker collected from different sites resolves to one bucket.
+// e.g. "AMC・ジープ" and "AMCジープ" → "amcジープ".
+function makerDedupeKey(value) {
+  return normalizeDisplayText(value)
+    .toLowerCase()
+    .replace(/[・･]/g, '')
+    .replace(/\s+/g, '');
+}
+
 function canonicalMakerValue(label) {
   const normalized = normalizeDisplayText(label);
-  return dictionaries.maker[label] || dictionaries.maker[normalized] || normalized.toLowerCase();
+  return (
+    dictionaries.maker[label] ||
+    dictionaries.maker[normalized] ||
+    dictionaries.maker[normalized.toLowerCase()] ||
+    makerDedupeKey(normalized)
+  );
 }
 
 function makerDisplayLabel(value, label) {
@@ -84,4 +99,6 @@ async function fetchMakerOptions({ fetchImpl = fetch, sites = Object.keys(adapte
 module.exports = {
   mergeMakerOptions,
   fetchMakerOptions,
+  makerDedupeKey,
+  canonicalMakerValue,
 };

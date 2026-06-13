@@ -19,7 +19,8 @@ const {
 } = require('../../queues/crawler');
 const { getAdapterForUrl } = require('../../crawler/adapters');
 const { ensurePresetSchedule, removePresetSchedule } = require('../../crawler/scheduler');
-const { fetchMakerOptions } = require('../../crawler/makers');
+const { fetchMakerOptions, makerDedupeKey } = require('../../crawler/makers');
+const { canonicalMaker } = require('../../crawler/lookup/maker');
 const { createVehicleFromListing } = require('../../crawler/import-vehicle');
 const { translateDescription } = require('../../crawler/translate-description');
 
@@ -69,13 +70,6 @@ function normalizeNumbers(value) {
   return next;
 }
 
-function normalizeDisplayText(value) {
-  return String(value)
-    .normalize('NFKC')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
 function makerLabel(value) {
   if (!value) return 'all makers';
   return String(value)
@@ -85,7 +79,7 @@ function makerLabel(value) {
 }
 
 function normalizeMakerOption(value, sites = {}) {
-  const normalized = value == null ? '' : normalizeDisplayText(value).toLowerCase();
+  const normalized = value == null || value === '' ? '' : canonicalMaker(value);
   return { value: normalized, label: makerLabel(normalized), sites };
 }
 
@@ -104,6 +98,10 @@ function sanitizeCriteria(criteria = {}) {
   for (const field of stringFields) {
     if (typeof criteria[field] === 'string' && criteria[field].trim()) out[field] = criteria[field].trim();
   }
+  // Store the maker on the same canonical key listings use, so matchesCriteria
+  // (plain equality) actually matches. Without this, "Toyota"/"トヨタ" never
+  // equal the ingested "toyota" and no notifications are ever created.
+  if (out.maker) out.maker = canonicalMaker(out.maker);
   for (const field of numberFields) {
     const value = parseIntQuery(criteria[field]);
     if (value != null) out[field] = value;
@@ -121,17 +119,30 @@ router.get(
     const where = {};
     const priceMin = parseIntQuery(req.query.priceMin);
     const priceMax = parseIntQuery(req.query.priceMax);
+    const yearMin = parseIntQuery(req.query.yearMin);
+    const yearMax = parseIntQuery(req.query.yearMax);
+    const mileageMin = parseIntQuery(req.query.mileageMin);
+    const mileageMax = parseIntQuery(req.query.mileageMax);
     const limit = Math.min(parseIntQuery(req.query.limit) || 50, 200);
     const offset = parseIntQuery(req.query.offset) || 0;
 
     if (req.query.source) where.source = req.query.source;
     if (req.query.maker) where.maker = req.query.maker;
     if (req.query.status) where.status = req.query.status;
-    if (priceMin != null || priceMax != null) {
-      where.totalPrice = {};
-      if (priceMin != null) where.totalPrice[Op.gte] = priceMin;
-      if (priceMax != null) where.totalPrice[Op.lte] = priceMax;
-    }
+    if (req.query.bodyType) where.bodyType = req.query.bodyType;
+    if (req.query.fuelType) where.fuelType = req.query.fuelType;
+    if (req.query.transmission) where.transmission = req.query.transmission;
+    if (req.query.drivetrain) where.drivetrain = req.query.drivetrain;
+
+    const between = (field, min, max) => {
+      if (min == null && max == null) return;
+      where[field] = {};
+      if (min != null) where[field][Op.gte] = min;
+      if (max != null) where[field][Op.lte] = max;
+    };
+    between('totalPrice', priceMin, priceMax);
+    between('modelYear', yearMin, yearMax);
+    between('mileageKm', mileageMin, mileageMax);
 
     const { rows, count } = await Listing.findAndCountAll({
       where,
@@ -177,15 +188,30 @@ router.get(
   asyncHandler(async (req, res) => {
     const persisted = await Maker.findAll({ order: [['label', 'ASC']] });
     if (persisted.length) {
-      return res.send({
-        rows: [
-          normalizeMakerOption(''),
-          ...persisted.map(row => {
-            const plain = toPlain(row);
-            return normalizeMakerOption(plain.value, plain.sites || {});
-          }),
-        ],
-      });
+      // Collapse cosmetic duplicates (e.g. "AMC・ジープ" vs "AMCジープ") that
+      // accumulated before canonicalisation strengthened. The option value is
+      // the dedupe key so it matches the normalized maker stored on listings.
+      const byKey = new Map();
+      for (const row of persisted) {
+        const plain = toPlain(row);
+        const key = makerDedupeKey(plain.value);
+        if (!key) continue;
+        const label = plain.label || makerLabel(plain.value);
+        const existing = byKey.get(key);
+        if (existing) {
+          existing.sites = { ...existing.sites, ...(plain.sites || {}) };
+          // Prefer the more readable label (the one keeping the ・ separator).
+          if (!existing.label.includes('・') && label.includes('・')) existing.label = label;
+        } else {
+          byKey.set(key, { value: key, label, sites: plain.sites || {} });
+        }
+      }
+
+      const rows = [
+        normalizeMakerOption(''),
+        ...Array.from(byKey.values()).sort((a, b) => a.label.localeCompare(b.label)),
+      ];
+      return res.send({ rows });
     }
 
     const crawlerOptions = await fetchMakerOptions();
@@ -219,6 +245,39 @@ router.get(
           .filter(option => option.value),
       ],
     });
+  })
+);
+
+// Distinct values actually present in the data, so filter dropdowns never
+// offer an option that returns zero results (mirrors how /makers works).
+router.get(
+  '/facets',
+  asyncHandler(async (req, res) => {
+    const FACET_COLUMNS = {
+      source: 'source',
+      bodyType: 'body_type',
+      fuelType: 'fuel_type',
+      transmission: 'transmission',
+      drivetrain: 'drivetrain',
+    };
+
+    const distinct = async column => {
+      const rows = await Listing.findAll({
+        attributes: [[sequelize.fn('DISTINCT', sequelize.col(column)), 'value']],
+        where: { [column]: { [Op.ne]: null } },
+        order: [[sequelize.col(column), 'ASC']],
+        raw: true,
+      });
+      return rows
+        .map(row => row.value)
+        .filter(value => value != null && String(value).trim() !== '');
+    };
+
+    const entries = await Promise.all(
+      Object.entries(FACET_COLUMNS).map(async ([field, column]) => [field, await distinct(column)])
+    );
+
+    res.send(Object.fromEntries(entries));
   })
 );
 
