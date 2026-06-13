@@ -1,0 +1,12 @@
+{
+  "name": "@jdm-pro/lookup",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.js",
+  "exports": { ".": "./src/index.js" },
+  "dependencies": {
+    "@jdm-pro/db": "workspace:*",
+    "openai": "6.42.0"
+  }
+}

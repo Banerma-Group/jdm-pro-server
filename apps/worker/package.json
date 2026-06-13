@@ -1,0 +1,24 @@
+{
+  "name": "@jdm-pro/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch src/index.js",
+    "start": "bun src/index.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1067.0",
+    "@aws-sdk/lib-storage": "^3.1067.0",
+    "@jdm-pro/crawler": "workspace:*",
+    "@jdm-pro/db": "workspace:*",
+    "@jdm-pro/lookup": "workspace:*",
+    "@jdm-pro/shared": "workspace:*",
+    "axios": "1.17.0",
+    "bullmq": "5.78.0",
+    "dayjs": "1.11.21",
+    "form-data": "^4.0.5",
+    "ioredis": "^5.11.1",
+    "sharp": "^0.35.1"
+  }
+}

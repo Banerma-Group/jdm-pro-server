@@ -5,6 +5,8 @@
 .DS_STORE
 /.env
 /.env*
+!/.env.example
+.cloakbrowser
 /coverage/
 /npm-debug.log*
 /testem.log
