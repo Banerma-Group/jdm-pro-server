@@ -1,0 +1,79 @@
+# Render Blueprint for the Bun monorepo. Both services build the SAME Docker
+# image and differ only by Docker Command.
+#
+# IMPORTANT migration notes:
+#  - The DB is SHARED with feruz-crawler and is already populated. Do NOT add a
+#    blind `bun run db:migrate` preDeploy until the drizzle baseline is stamped
+#    (see packages/db/README.md). Run the first baseline manually/reviewed.
+#  - Keep the web service at numInstances: 1 — the in-process Telegram bot polls
+#    getUpdates and a 2nd instance causes 409 conflicts.
+#  - Replace the `fromDatabase` / `fromService` names with your existing Render
+#    Postgres + Redis resource names, or set DATABASE_URL/REDIS_URL directly.
+#  - Do NOT set PORT in the env group; Render injects it and Bun.serve reads it.
+
+services:
+  - type: web
+    name: jdm-pro-server
+    runtime: image
+    region: frankfurt
+    plan: standard
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    numInstances: 1
+    healthCheckPath: /health
+    dockerCommand: bun apps/api/src/index.js
+    envVars:
+      - fromGroup: jdm-shared-env
+
+  - type: worker
+    name: jdm-pro-worker
+    runtime: image
+    region: frankfurt
+    plan: standard
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    dockerCommand: bun apps/worker/src/index.js
+    envVars:
+      - fromGroup: jdm-shared-env
+
+envVarGroups:
+  - name: jdm-shared-env
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_BOT_USERNAME
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_REGION
+        sync: false
+      - key: S3_IMAGE_PREFIX
+        sync: false
+      - key: IG_GRAPH_VERSION
+        sync: false
+      - key: IG_USER_ID
+        sync: false
+      - key: IG_ACCESS_TOKEN
+        sync: false
+      - key: FRONT_HOST_NAME
+        sync: false
+      - key: BACK_HOST_NAME
+        sync: false
+      - key: WORKER_CONCURRENCY
+        value: "2"
