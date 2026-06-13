@@ -8,7 +8,10 @@
     ".": "./src/adapters/index.js",
     "./makers": "./src/makers.js",
     "./browser": "./src/browser.js",
-    "./adapters": "./src/adapters/index.js"
+    "./adapters": "./src/adapters/index.js",
+    "./criteria": "./src/criteria.js",
+    "./parseSpecs": "./src/parseSpecs.js",
+    "./dom": "./src/dom.js"
   },
   "dependencies": {
     "@jdm-pro/lookup": "workspace:*",
