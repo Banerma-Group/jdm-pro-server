@@ -3,6 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "exports": {
+    "./scheduler": "./src/scheduler.js",
+    "./queues": "./src/queues.js",
+    "./importVehicle": "./src/importVehicle.js",
+    "./listingFormat": "./src/listingFormat.js",
+    "./translateDescription": "./src/translateDescription.js",
+    "./telegram": "./src/telegram.js",
+    "./instagram": "./src/instagram/publish.js",
+    "./s3": "./src/s3/images.js"
+  },
   "scripts": {
     "dev": "bun --watch src/index.js",
     "start": "bun src/index.js"
