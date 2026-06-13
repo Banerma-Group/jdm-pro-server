@@ -1,5 +1,12 @@
 const { matchesCriteria } = require('../criteria');
 const { debugLog } = require('../shared/debug');
+const { buildCaption, buildKeyboard, coverPhoto } = require('../listing-format');
+
+// Lazily required so tests that don't touch the autoCreateVehicles path don't
+// pull in db/models (which needs a DB connection) at import time.
+function defaultCreateVehicle() {
+  return require('../import-vehicle').createVehicleFromListing;
+}
 
 function defaultModels() {
   const { FilterPreset, Notification } = require('../../../db/models');
@@ -21,7 +28,43 @@ function toMatchShape(listing) {
   };
 }
 
-async function notifyMatches(listing, { telegram, models = defaultModels() } = {}) {
+// Public website vehicle preview: FRONT_HOST_NAME/<locale>/inventory/<slug>.
+function vehicleUrl(slug) {
+  const base = process.env.FRONT_HOST_NAME;
+  if (!base || !slug) return null;
+  return `${base.replace(/\/$/, '')}/en/inventory/${slug}`;
+}
+
+// Sends one matched listing to a preset's Telegram chat as a photo post with
+// inline action buttons. Falls back to a plain text message when there's no photo.
+async function sendListingPost(row, preset, { telegram, createVehicle }) {
+  let url = null;
+  if (preset.autoCreateVehicles) {
+    // Idempotent: the listing worker also imports for autoCreate presets, but
+    // findOrCreate dedupes. Ensuring it here lets the "View vehicle" link resolve.
+    const create = createVehicle || defaultCreateVehicle();
+    const { vehicle } = await create(row.id);
+    url = vehicleUrl(vehicle.slug);
+  }
+
+  const keyboard = buildKeyboard({
+    listingId: row.id,
+    autoCreateVehicles: preset.autoCreateVehicles,
+    vehicleUrl: url,
+  });
+
+  const cover = coverPhoto(row);
+  if (cover && typeof telegram.sendPhoto === 'function') {
+    const caption = buildCaption(row, { html: true });
+    await telegram.sendPhoto(preset.telegramChatId, cover, caption, keyboard);
+    return;
+  }
+
+  const text = `New match (${preset.name}): ${row.maker || ''} ${row.model || ''} - JPY ${row.totalPrice || '?'}\n${row.url}`;
+  await telegram.send(preset.telegramChatId, text);
+}
+
+async function notifyMatches(listing, { telegram, models = defaultModels(), createVehicle } = {}) {
   const { FilterPreset, Notification } = models;
   const row = typeof listing.toJSON === 'function' ? listing.toJSON() : listing;
   const presets = await FilterPreset.findAll({ where: { enabled: true } });
@@ -71,9 +114,7 @@ async function notifyMatches(listing, { telegram, models = defaultModels() } = {
     });
 
     if (telegram && preset.telegramChatId) {
-      const text = `New match (${preset.name}): ${row.maker || ''} ${row.model || ''} - JPY ${row.totalPrice || '?'}\n${row.url}`;
-      await telegram
-        .send(preset.telegramChatId, text)
+      await sendListingPost(row, preset, { telegram, createVehicle })
         .then(() =>
           debugLog('worker.notify.telegram.sent', {
             listingId: row.id,
@@ -98,4 +139,5 @@ async function notifyMatches(listing, { telegram, models = defaultModels() } = {
 
 module.exports = {
   notifyMatches,
+  sendListingPost,
 };

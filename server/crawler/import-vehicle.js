@@ -1,4 +1,17 @@
+const crypto = require('crypto');
 const { Listing, Vehicle, Media, VehicleMedia, sequelize } = require('../../db/models');
+
+// Mirrors the dashboard's vehicle-form slug format ("make-model-<suffix>") so
+// crawler-created vehicles get a public-website slug and the Telegram "View
+// vehicle" button can deep-link to /<locale>/inventory/<slug>.
+function vehicleSlug(make, model) {
+  const base = `${make || ''}-${model || ''}`
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  const suffix = crypto.randomBytes(3).toString('hex');
+  return base ? `${base}-${suffix}` : suffix;
+}
 
 function numberString(value) {
   if (value == null) return null;
@@ -29,6 +42,7 @@ function vehicleAttrsFromListing(listing) {
     status: 'available',
     locale: 'ja',
     isPosted: false,
+    slug: vehicleSlug(row.maker, row.model),
     crawlerListingId: row.id,
   };
 }

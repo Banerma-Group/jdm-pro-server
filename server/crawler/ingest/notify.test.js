@@ -98,6 +98,79 @@ test('matches when criteria.maker is stored non-canonically (e.g. "Toyota" vs li
   assert.equal(models.store.length, 1);
 });
 
+test('sends a photo post with a "Post to vehicles" callback button when autoCreateVehicles is off', async () => {
+  const models = makeFakeModels([bmwPreset]);
+  const photos = [];
+  const telegram = {
+    send: async () => {
+      throw new Error('should not fall back to text when a photo exists');
+    },
+    sendPhoto: async (chatId, photoUrl, caption, keyboard) =>
+      photos.push({ chatId, photoUrl, caption, keyboard }),
+  };
+
+  await notifyMatches(makeListing({ photos: ['https://cdn.example/cover.jpg'] }), {
+    telegram,
+    models,
+  });
+
+  assert.equal(photos.length, 1, 'should send exactly one photo post');
+  const [post] = photos;
+  assert.equal(post.chatId, '12345');
+  assert.equal(post.photoUrl, 'https://cdn.example/cover.jpg');
+  assert.equal(post.keyboard[0][0].callback_data, 'pv:listing-1', 'row 1 = post to vehicles');
+  assert.equal(post.keyboard[1][0].callback_data, 'ig:listing-1', 'row 2 = instagram');
+});
+
+test('uses a "View vehicle" url button (front website inventory by slug) when autoCreateVehicles is on', async () => {
+  const prev = process.env.FRONT_HOST_NAME;
+  process.env.FRONT_HOST_NAME = 'https://jdm.example';
+  try {
+    const preset = { ...bmwPreset, autoCreateVehicles: true };
+    const models = makeFakeModels([preset]);
+    const imported = [];
+    const createVehicle = async id => {
+      imported.push(id);
+      return { vehicle: { id: 'veh-9', slug: 'bmw-3-series-abc123' }, created: true };
+    };
+    const photos = [];
+    const telegram = {
+      send: async () => {},
+      sendPhoto: async (chatId, photoUrl, caption, keyboard) => photos.push({ keyboard }),
+    };
+
+    await notifyMatches(makeListing({ photos: ['https://cdn.example/cover.jpg'] }), {
+      telegram,
+      models,
+      createVehicle,
+    });
+
+    assert.deepEqual(imported, ['listing-1'], 'should ensure the vehicle exists');
+    const button = photos[0].keyboard[0][0];
+    assert.equal(button.url, 'https://jdm.example/en/inventory/bmw-3-series-abc123');
+    assert.equal(button.callback_data, undefined, 'view button is a url, not a callback');
+  } finally {
+    process.env.FRONT_HOST_NAME = prev;
+  }
+});
+
+test('falls back to a plain text message when the listing has no photo', async () => {
+  const models = makeFakeModels([bmwPreset]);
+  const sent = [];
+  let photoCalled = false;
+  const telegram = {
+    send: async (chatId, text) => sent.push({ chatId, text }),
+    sendPhoto: async () => {
+      photoCalled = true;
+    },
+  };
+
+  await notifyMatches(makeListing(), { telegram, models });
+
+  assert.equal(photoCalled, false, 'must not call sendPhoto without a photo');
+  assert.equal(sent.length, 1, 'should send one text message as fallback');
+});
+
 test('matches when criteria.maker is provided in Japanese against the canonical listing maker', async () => {
   const preset = {
     id: 'preset-jp',
