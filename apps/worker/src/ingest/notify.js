@@ -81,7 +81,7 @@ export async function notifyMatches(
         .values({ listingId, presetId })
         .onConflictDoNothing({
           target: [schema.notifications.listingId, schema.notifications.presetId],
-          targetWhere: sql`preset_id is not null`,
+          where: sql`preset_id is not null`,
         })
         .returning();
       return inserted.length > 0;
