@@ -13,6 +13,7 @@ import { mediaRoutes } from "./routes/media.js";
 import { searchRoutes } from "./routes/search.js";
 import { crawlerTelegramRoutes } from "./routes/crawlerTelegram.js";
 import { crawlerRoutes } from "./routes/crawler.js";
+import { buildBot } from "./telegram/bot.js";
 
 const port = Number(process.env.PORT ?? 3000);
 const { db } = createDb();
@@ -94,4 +95,31 @@ const server = Bun.serve({
 
 console.log(`jdm-pro API listening on http://localhost:${server.port}`);
 
+// Telegram bot runs in-process with the API (long polling), mirroring the old
+// bin/www. Only ONE instance may poll a given token — do NOT scale the API to
+// 2+ instances while the bot polls (Telegram getUpdates 409 conflict).
+let bot = null;
+if (process.env.TELEGRAM_BOT_TOKEN) {
+  bot = buildBot(db);
+  bot.launch().catch((error) => console.error("Telegram bot polling error:", error?.message || error));
+  console.log("Telegram bot started (long polling)");
+} else {
+  console.log("Telegram bot disabled: TELEGRAM_BOT_TOKEN not set");
+}
+
+function shutdown(signal) {
+  console.log(`API received ${signal}, shutting down`);
+  if (bot) {
+    try {
+      bot.stop(signal);
+    } catch {
+      /* already stopped */
+    }
+  }
+  server.stop(true);
+  process.exit(0);
+}
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
 process.on("unhandledRejection", (reason) => debugLog("api.unhandledRejection", { message: String(reason) }));
