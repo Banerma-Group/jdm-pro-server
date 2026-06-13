@@ -1,5 +1,5 @@
 {
-  "id": "bb48dfd2-978f-4ca5-ba64-7f730ee8f9a3",
+  "id": "ada7b29b-2d65-4060-9890-dada627e3a07",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -469,15 +469,13 @@
           "name": "created_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
-          "notNull": false,
-          "default": "now()"
+          "notNull": false
         },
         "updated_at": {
           "name": "updated_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
-          "notNull": false,
-          "default": "now()"
+          "notNull": false
         }
       },
       "indexes": {},
@@ -702,8 +700,7 @@
         },
         "locale": {
           "name": "locale",
-          "type": "enum_purchasing_processes_locale",
-          "typeSchema": "public",
+          "type": "varchar(255)",
           "primaryKey": false,
           "notNull": false
         },
@@ -723,15 +720,13 @@
           "name": "created_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
-          "notNull": false,
-          "default": "now()"
+          "notNull": false
         },
         "updated_at": {
           "name": "updated_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
-          "notNull": false,
-          "default": "now()"
+          "notNull": false
         },
         "published_at": {
           "name": "published_at",
@@ -772,7 +767,34 @@
           "with": {}
         }
       },
-      "foreignKeys": {},
+      "foreignKeys": {
+        "purchasing_processes_created_by_id_users_id_fk": {
+          "name": "purchasing_processes_created_by_id_users_id_fk",
+          "tableFrom": "purchasing_processes",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "purchasing_processes_updated_by_id_users_id_fk": {
+          "name": "purchasing_processes_updated_by_id_users_id_fk",
+          "tableFrom": "purchasing_processes",
+          "tableTo": "users",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -815,8 +837,7 @@
         },
         "locale": {
           "name": "locale",
-          "type": "enum_services_locale",
-          "typeSchema": "public",
+          "type": "varchar(255)",
           "primaryKey": false,
           "notNull": false
         },
@@ -836,15 +857,13 @@
           "name": "created_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
-          "notNull": false,
-          "default": "now()"
+          "notNull": false
         },
         "updated_at": {
           "name": "updated_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
-          "notNull": false,
-          "default": "now()"
+          "notNull": false
         },
         "published_at": {
           "name": "published_at",
@@ -985,8 +1004,7 @@
           "name": "created_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
+          "notNull": true
         },
         "last_used_at": {
           "name": "last_used_at",
@@ -1116,15 +1134,13 @@
           "name": "created_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
+          "notNull": true
         },
         "updated_at": {
           "name": "updated_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
+          "notNull": true
         }
       },
       "indexes": {},
@@ -1181,15 +1197,13 @@
           "name": "created_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
+          "notNull": true
         },
         "updated_at": {
           "name": "updated_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
+          "notNull": true
         }
       },
       "indexes": {
@@ -1379,15 +1393,13 @@
           "name": "created_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
-          "notNull": false,
-          "default": "now()"
+          "notNull": false
         },
         "updated_at": {
           "name": "updated_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
-          "notNull": false,
-          "default": "now()"
+          "notNull": false
         },
         "published_at": {
           "name": "published_at",
@@ -1505,22 +1517,6 @@
     }
   },
   "enums": {
-    "public.enum_purchasing_processes_locale": {
-      "name": "enum_purchasing_processes_locale",
-      "schema": "public",
-      "values": [
-        "en",
-        "ja"
-      ]
-    },
-    "public.enum_services_locale": {
-      "name": "enum_services_locale",
-      "schema": "public",
-      "values": [
-        "en",
-        "ja"
-      ]
-    },
     "public.enum_users_role": {
       "name": "enum_users_role",
       "schema": "public",

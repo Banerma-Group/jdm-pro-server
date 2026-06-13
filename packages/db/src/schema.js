@@ -114,8 +114,9 @@ export const translationCache = pgTable("translation_cache", {
 export const userRoleEnum = pgEnum("enum_users_role", ["client", "admin"]);
 export const vehicleStatusEnum = pgEnum("enum_vehicles_status", ["available", "sold", "soon", "ask"]);
 export const vehicleLocaleEnum = pgEnum("enum_vehicles_locale", ["en", "ja"]);
-export const serviceLocaleEnum = pgEnum("enum_services_locale", ["en", "ja"]);
-export const purchasingProcessLocaleEnum = pgEnum("enum_purchasing_processes_locale", ["en", "ja"]);
+// NOTE: services.locale / purchasing_processes.locale are plain varchar in the
+// live DB (only users.role + vehicles.status/locale became real PG enums), so
+// these are modeled as varchar to match reality — not pgEnum.
 
 /* =========================================================================
  * jdm-only TABLES (live in the SAME shared database)
@@ -129,8 +130,8 @@ export const users = pgTable("users", {
   lastName: varchar("last_name", { length: 255 }),
   email: varchar("email", { length: 255 }).notNull().unique(),
   role: userRoleEnum("role"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().$defaultFn(() => new Date()),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().$defaultFn(() => new Date())
 });
 
 export const media = pgTable("media", {
@@ -138,8 +139,8 @@ export const media = pgTable("media", {
   url: text("url").notNull(),
   name: varchar("name", { length: 255 }),
   userId: integer("user_id").references(() => users.id),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow()
+  createdAt: timestamp("created_at", { withTimezone: true }).$defaultFn(() => new Date()),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).$defaultFn(() => new Date())
 });
 
 export const vehicles = pgTable("vehicles", {
@@ -163,8 +164,8 @@ export const vehicles = pgTable("vehicles", {
   createdById: integer("created_by_id").references(() => users.id, { onDelete: "set null" }),
   updatedById: integer("updated_by_id").references(() => users.id, { onDelete: "set null" }),
   crawlerListingId: uuid("crawler_listing_id").references(() => listings.id, { onDelete: "set null" }),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).$defaultFn(() => new Date()),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).$defaultFn(() => new Date()),
   publishedAt: timestamp("published_at", { withTimezone: true })
 }, (t) => ({
   byCrawlerListing: uniqueIndex("vehicles_crawler_listing_id_uq").on(t.crawlerListingId),
@@ -178,27 +179,25 @@ export const vehicleMedia = pgTable("vehicle_media", {
   mediaId: integer("media_id").notNull().references(() => media.id, { onDelete: "cascade" }),
   sortOrder: integer("sort_order"),
   isCover: boolean("is_cover"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().$defaultFn(() => new Date()),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().$defaultFn(() => new Date())
 }, (t) => ({
   uniqVehicleMedia: uniqueIndex("vehicle_media_vehicle_id_media_id_key").on(t.vehicleId, t.mediaId)
 }));
 
-// NOTE: created_by_id/updated_by_id reference `admin_users` in the original
-// Sequelize migration (a pre-existing quirk; no model/migration creates that
-// table). Modeled here as plain integers — the drizzle introspect/baseline
-// step is authoritative for whatever FK actually exists on the live DB.
+// The migration named the FK target `admin_users`, but the live DB FK actually
+// references `users` (the admin_users table does not exist) — modeled to match.
 export const purchasingProcesses = pgTable("purchasing_processes", {
   id: serial("id").primaryKey(),
   title: varchar("title", { length: 255 }),
   slug: varchar("slug", { length: 255 }),
   description: jsonb("description"),
   introduction: varchar("introduction", { length: 255 }),
-  locale: purchasingProcessLocaleEnum("locale"),
-  createdById: integer("created_by_id"),
-  updatedById: integer("updated_by_id"),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  locale: varchar("locale", { length: 255 }),
+  createdById: integer("created_by_id").references(() => users.id, { onDelete: "set null" }),
+  updatedById: integer("updated_by_id").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).$defaultFn(() => new Date()),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).$defaultFn(() => new Date()),
   publishedAt: timestamp("published_at", { withTimezone: true })
 }, (t) => ({
   byCreatedBy: index("pp_created_by_id_fk").on(t.createdById),
@@ -211,11 +210,11 @@ export const services = pgTable("services", {
   description: jsonb("description"),
   icon: varchar("icon", { length: 255 }),
   slug: varchar("slug", { length: 255 }),
-  locale: serviceLocaleEnum("locale"),
+  locale: varchar("locale", { length: 255 }),
   createdById: integer("created_by_id").references(() => users.id, { onDelete: "set null" }),
   updatedById: integer("updated_by_id").references(() => users.id, { onDelete: "set null" }),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).$defaultFn(() => new Date()),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).$defaultFn(() => new Date()),
   publishedAt: timestamp("published_at", { withTimezone: true })
 }, (t) => ({
   byDocuments: index("services_documents_idx").on(t.locale, t.publishedAt),
@@ -230,7 +229,7 @@ export const telegramConnections = pgTable("telegram_connections", {
   firstName: text("first_name"),
   lastName: text("last_name"),
   username: text("username"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().$defaultFn(() => new Date()),
   lastUsedAt: timestamp("last_used_at", { withTimezone: true })
 }, (t) => ({
   byChatId: uniqueIndex("telegram_connections_chat_id_uq").on(t.chatId)

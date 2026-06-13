@@ -1,5 +1,3 @@
-CREATE TYPE "public"."enum_purchasing_processes_locale" AS ENUM('en', 'ja');--> statement-breakpoint
-CREATE TYPE "public"."enum_services_locale" AS ENUM('en', 'ja');--> statement-breakpoint
 CREATE TYPE "public"."enum_users_role" AS ENUM('client', 'admin');--> statement-breakpoint
 CREATE TYPE "public"."enum_vehicles_locale" AS ENUM('en', 'ja');--> statement-breakpoint
 CREATE TYPE "public"."enum_vehicles_status" AS ENUM('available', 'sold', 'soon', 'ask');--> statement-breakpoint
@@ -74,8 +72,8 @@ CREATE TABLE "media" (
 	"url" text NOT NULL,
 	"name" varchar(255),
 	"user_id" integer,
-	"created_at" timestamp with time zone DEFAULT now(),
-	"updated_at" timestamp with time zone DEFAULT now()
+	"created_at" timestamp with time zone,
+	"updated_at" timestamp with time zone
 );
 --> statement-breakpoint
 CREATE TABLE "notifications" (
@@ -99,11 +97,11 @@ CREATE TABLE "purchasing_processes" (
 	"slug" varchar(255),
 	"description" jsonb,
 	"introduction" varchar(255),
-	"locale" "enum_purchasing_processes_locale",
+	"locale" varchar(255),
 	"created_by_id" integer,
 	"updated_by_id" integer,
-	"created_at" timestamp with time zone DEFAULT now(),
-	"updated_at" timestamp with time zone DEFAULT now(),
+	"created_at" timestamp with time zone,
+	"updated_at" timestamp with time zone,
 	"published_at" timestamp with time zone
 );
 --> statement-breakpoint
@@ -113,11 +111,11 @@ CREATE TABLE "services" (
 	"description" jsonb,
 	"icon" varchar(255),
 	"slug" varchar(255),
-	"locale" "enum_services_locale",
+	"locale" varchar(255),
 	"created_by_id" integer,
 	"updated_by_id" integer,
-	"created_at" timestamp with time zone DEFAULT now(),
-	"updated_at" timestamp with time zone DEFAULT now(),
+	"created_at" timestamp with time zone,
+	"updated_at" timestamp with time zone,
 	"published_at" timestamp with time zone
 );
 --> statement-breakpoint
@@ -128,7 +126,7 @@ CREATE TABLE "telegram_connections" (
 	"first_name" text,
 	"last_name" text,
 	"username" text,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"created_at" timestamp with time zone NOT NULL,
 	"last_used_at" timestamp with time zone
 );
 --> statement-breakpoint
@@ -148,8 +146,8 @@ CREATE TABLE "users" (
 	"last_name" varchar(255),
 	"email" varchar(255) NOT NULL,
 	"role" "enum_users_role",
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"created_at" timestamp with time zone NOT NULL,
+	"updated_at" timestamp with time zone NOT NULL,
 	CONSTRAINT "users_email_unique" UNIQUE("email")
 );
 --> statement-breakpoint
@@ -159,8 +157,8 @@ CREATE TABLE "vehicle_media" (
 	"media_id" integer NOT NULL,
 	"sort_order" integer,
 	"is_cover" boolean,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+	"created_at" timestamp with time zone NOT NULL,
+	"updated_at" timestamp with time zone NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "vehicles" (
@@ -184,8 +182,8 @@ CREATE TABLE "vehicles" (
 	"created_by_id" integer,
 	"updated_by_id" integer,
 	"crawler_listing_id" uuid,
-	"created_at" timestamp with time zone DEFAULT now(),
-	"updated_at" timestamp with time zone DEFAULT now(),
+	"created_at" timestamp with time zone,
+	"updated_at" timestamp with time zone,
 	"published_at" timestamp with time zone
 );
 --> statement-breakpoint
@@ -194,6 +192,8 @@ ALTER TABLE "media" ADD CONSTRAINT "media_user_id_users_id_fk" FOREIGN KEY ("use
 ALTER TABLE "notifications" ADD CONSTRAINT "notifications_listing_id_listings_id_fk" FOREIGN KEY ("listing_id") REFERENCES "public"."listings"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "notifications" ADD CONSTRAINT "notifications_preset_id_filter_presets_id_fk" FOREIGN KEY ("preset_id") REFERENCES "public"."filter_presets"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "price_history" ADD CONSTRAINT "price_history_listing_id_listings_id_fk" FOREIGN KEY ("listing_id") REFERENCES "public"."listings"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "purchasing_processes" ADD CONSTRAINT "purchasing_processes_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "purchasing_processes" ADD CONSTRAINT "purchasing_processes_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "services" ADD CONSTRAINT "services_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "services" ADD CONSTRAINT "services_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "vehicle_media" ADD CONSTRAINT "vehicle_media_vehicle_id_vehicles_id_fk" FOREIGN KEY ("vehicle_id") REFERENCES "public"."vehicles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
