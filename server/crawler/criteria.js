@@ -10,8 +10,14 @@ function inSet(value, set) {
   return value != null && set.includes(value);
 }
 
+const { canonicalMaker } = require('./lookup/maker');
+
 function matchesCriteria(listing, criteria = {}) {
-  if (criteria.maker && listing.maker !== criteria.maker) return false;
+  // Compare makers on the canonical key. listing.maker is already canonical from
+  // ingest, but criteria.maker may have been stored before canonicalisation
+  // (e.g. "Toyota" or "トヨタ"); normalise both so equality actually holds.
+  if (criteria.maker && canonicalMaker(listing.maker) !== canonicalMaker(criteria.maker))
+    return false;
   if (!inSet(listing.model, criteria.models)) return false;
   if (!inRange(listing.totalPrice, criteria.priceMin, criteria.priceMax)) return false;
   if (!inRange(listing.modelYear, criteria.yearMin, criteria.yearMax)) return false;

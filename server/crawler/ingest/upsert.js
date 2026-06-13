@@ -1,5 +1,5 @@
 const { Listing, PriceHistory, sequelize } = require('../../../db/models');
-const dictionaries = require('../lookup/dictionaries');
+const { canonicalMaker } = require('../lookup/maker');
 const { debugLog } = require('../shared/debug');
 
 const listingFields = [
@@ -30,18 +30,12 @@ const listingFields = [
   'raw',
 ];
 
-function normalizeMaker(value) {
-  if (value == null) return value;
-  const normalized = String(value).normalize('NFKC').replace(/\s+/g, ' ').trim();
-  return dictionaries.maker[value] || dictionaries.maker[normalized] || normalized.toLowerCase();
-}
-
 function normalizeListing(canonical) {
   const out = {};
   for (const field of listingFields) {
     if (field in canonical) out[field] = canonical[field];
   }
-  out.maker = normalizeMaker(out.maker);
+  out.maker = canonicalMaker(out.maker);
   out.photos = Array.isArray(out.photos) ? out.photos.filter(Boolean) : [];
   return out;
 }

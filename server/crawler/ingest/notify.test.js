@@ -80,3 +80,36 @@ test('does not notify when the listing fails the preset criteria', async () => {
   assert.equal(count, 0);
   assert.equal(models.store.length, 0);
 });
+
+test('matches when criteria.maker is stored non-canonically (e.g. "Toyota" vs listing "toyota")', async () => {
+  const preset = {
+    id: 'preset-toyota',
+    name: 'Toyota',
+    enabled: true,
+    sites: ['goonet'],
+    criteria: { maker: 'Toyota' },
+    telegramChatId: null,
+  };
+  const models = makeFakeModels([preset]);
+
+  const count = await notifyMatches(makeListing({ maker: 'toyota', model: 'prius' }), { models });
+
+  assert.equal(count, 1, 'criteria maker "Toyota" must match canonical listing maker "toyota"');
+  assert.equal(models.store.length, 1);
+});
+
+test('matches when criteria.maker is provided in Japanese against the canonical listing maker', async () => {
+  const preset = {
+    id: 'preset-jp',
+    name: 'Toyota JP',
+    enabled: true,
+    sites: ['goonet'],
+    criteria: { maker: 'トヨタ' },
+    telegramChatId: null,
+  };
+  const models = makeFakeModels([preset]);
+
+  const count = await notifyMatches(makeListing({ maker: 'toyota' }), { models });
+
+  assert.equal(count, 1, 'criteria maker "トヨタ" must match canonical listing maker "toyota"');
+});
