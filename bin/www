@@ -8,9 +8,25 @@ const app = require('../app');
 const http = require('http');
 const debug = require('debug')('www');
 const server = http.createServer(app);
-// const bot = require('../server/bot-app/index');
+const { buildBot } = require('../server/workers/telegram-bot');
 
 const port = process.env.PORT || 8080;
+
+// Telegram bot runs in-process with the API server (long polling). Built once
+// here so connect deep-links and inline buttons work without a separate worker.
+let bot = null;
+function startBot() {
+  if (!process.env.TELEGRAM_BOT_TOKEN) {
+    console.log('Telegram bot disabled: TELEGRAM_BOT_TOKEN not set');
+    return;
+  }
+  bot = buildBot();
+  // launch() resolves only once the bot stops, so don't await it here.
+  bot.launch().catch(error => {
+    console.error('Telegram bot polling error:', error?.message || error);
+  });
+  console.log('Telegram bot started (long polling)');
+}
 
 // Initialize memory monitor for main process
 const memoryMonitor = createMemoryMonitor({
@@ -56,6 +72,9 @@ server.listen(port, function () {
 
   debug('Express server listening on port ' + server.address().port);
 
+  // Start the Telegram bot alongside the API server.
+  startBot();
+
   // Log initial memory usage
   memoryMonitor.logMemoryUsage();
 
@@ -87,7 +106,16 @@ const shutdown = async val => {
       memoryMonitor.stop();
     }
 
-    console.log('Webhook deregistered and bot shutdown gracefully.');
+    // Stop the Telegram bot polling loop.
+    if (bot) {
+      try {
+        bot.stop(typeof val === 'string' ? val : 'SIGTERM');
+      } catch {
+        // already stopped
+      }
+    }
+
+    console.log('Bot shutdown gracefully.');
     server.close(() => {
       process.exit(0);
     });
