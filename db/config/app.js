@@ -16,15 +16,20 @@ const base = {
   retry: { max: 3 }, // transient errors
 };
 
+// Local Postgres (Docker) doesn't speak SSL; remote managed DBs (Render) require it.
+const isLocalDb = /@(localhost|127\.0\.0\.1)(:|\/)/.test(process.env.DATABASE_URL || '');
+
 module.exports = {
   development: {
     ...base,
-    dialectOptions: {
-      ssl: {
-        require: true,
-        rejectUnauthorized: false,
-      },
-    },
+    dialectOptions: isLocalDb
+      ? {}
+      : {
+          ssl: {
+            require: true,
+            rejectUnauthorized: false,
+          },
+        },
   },
   test: {
     url: process.env.TEST_DATABASE_URL || 'postgres://localhost:5432/test_db',
