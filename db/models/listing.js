@@ -62,6 +62,7 @@ module.exports = (sequelize, DataTypes) => {
         defaultValue: [],
       },
       descriptionOriginal: DataTypes.TEXT,
+      descriptionTranslated: DataTypes.TEXT,
       raw: DataTypes.JSONB,
       status: {
         type: DataTypes.TEXT,

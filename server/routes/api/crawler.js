@@ -21,6 +21,7 @@ const { getAdapterForUrl } = require('../../crawler/adapters');
 const { ensurePresetSchedule, removePresetSchedule } = require('../../crawler/scheduler');
 const { fetchMakerOptions } = require('../../crawler/makers');
 const { createVehicleFromListing } = require('../../crawler/import-vehicle');
+const { translateDescription } = require('../../crawler/translate-description');
 
 const router = express.Router();
 
@@ -236,6 +237,35 @@ router.post(
 
     const { vehicle, created } = await createVehicleFromListing(req.params.id);
     res.status(created ? 201 : 200).send({ data: toPlain(vehicle), created });
+  })
+);
+
+router.post(
+  '/listings/:id/translate',
+  asyncHandler(async (req, res) => {
+    if (!UUID_RE.test(req.params.id)) return res.status(404).send({ error: 'not found' });
+
+    const listing = await Listing.findByPk(req.params.id);
+    if (!listing) return res.status(404).send({ error: 'not found' });
+
+    // Serve a cached translation if we already have one.
+    if (listing.descriptionTranslated) {
+      return res.send({ translation: listing.descriptionTranslated, cached: true });
+    }
+
+    if (!listing.descriptionOriginal) {
+      return res.send({ translation: null, cached: false });
+    }
+
+    const translation = await translateDescription(listing.descriptionOriginal);
+    if (!translation) {
+      return res.status(503).send({ error: 'translation unavailable' });
+    }
+
+    listing.descriptionTranslated = translation;
+    await listing.save();
+
+    res.send({ translation, cached: false });
   })
 );
 
