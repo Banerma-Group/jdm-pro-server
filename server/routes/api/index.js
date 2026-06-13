@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { smartRateLimit } = require('../../middleware/rate-limiters');
 
+router.use('/search', smartRateLimit({ authMax: 300, anonMax: 30 }), require('./search'));
 router.use('/vehicles', smartRateLimit({ authMax: 150, anonMax: 15 }), require('./vehicles'));
 router.use('/crawler', smartRateLimit({ authMax: 300, anonMax: 30 }), require('./crawler'));
 
