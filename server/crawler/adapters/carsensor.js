@@ -74,6 +74,8 @@ function buildSearchUrl(criteria = {}) {
     const maker = String(criteria.maker).trim().toLowerCase();
     params.set('BRDC', makerToBrandCode[maker] || String(criteria.maker).toUpperCase());
   }
+  // CarSensor price params are in man-yen (¥10,000) units.
+  if (criteria.priceMin) params.set('PRICELOW', String(Math.round(criteria.priceMin / 10000)));
   if (criteria.priceMax) params.set('PRICEHIGH', String(Math.round(criteria.priceMax / 10000)));
 
   const query = params.toString();
