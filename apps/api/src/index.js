@@ -4,14 +4,33 @@ import { json, text } from "./json.js";
 import { corsHeaders, preflight } from "./cors.js";
 import { buildContext, sessionCookie } from "./auth.js";
 import { deviceConflict } from "./webDeviceStore.js";
+import { authRoutes } from "./routes/auth.js";
+import { usersRoutes } from "./routes/users.js";
+import { vehiclesRoutes } from "./routes/vehicles.js";
+import { servicesRoutes } from "./routes/services.js";
+import { purchasingProcessesRoutes } from "./routes/purchasingProcesses.js";
+import { mediaRoutes } from "./routes/media.js";
+import { searchRoutes } from "./routes/search.js";
+import { crawlerTelegramRoutes } from "./routes/crawlerTelegram.js";
+import { crawlerRoutes } from "./routes/crawler.js";
 
 const port = Number(process.env.PORT ?? 3000);
 const { db } = createDb();
 
-// Public routes (no device guard, e.g. /api/auth). Populated in Stage 6.
-const publicRoutes = [];
-// Everything else under /api (device guard applies). Populated in Stage 6.
-const guardedRoutes = [];
+// Public routes (no device guard, e.g. /api/auth).
+const publicRoutes = [authRoutes];
+// Everything else under /api (device guard applies). crawlerTelegram before
+// crawler so /api/crawler/telegram/* is claimed first.
+const guardedRoutes = [
+  usersRoutes,
+  vehiclesRoutes,
+  servicesRoutes,
+  purchasingProcessesRoutes,
+  mediaRoutes,
+  searchRoutes,
+  crawlerTelegramRoutes,
+  crawlerRoutes,
+];
 
 // Single place that adds CORS + the rolling session-id cookie to every response.
 function decorate(res, request, ctx) {
