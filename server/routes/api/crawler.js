@@ -132,7 +132,7 @@ router.get(
       if (priceMax != null) where.totalPrice[Op.lte] = priceMax;
     }
 
-    const rows = await Listing.findAll({
+    const { rows, count } = await Listing.findAndCountAll({
       where,
       include: [{ model: Vehicle, as: 'vehicle', attributes: ['id'] }],
       order: [['last_seen_at', 'DESC']],
@@ -142,6 +142,7 @@ router.get(
 
     res.send({
       rows: rows.map(toPlain),
+      total: count,
       limit,
       offset,
     });
