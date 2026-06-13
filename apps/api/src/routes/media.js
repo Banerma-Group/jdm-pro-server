@@ -16,7 +16,12 @@ async function attachUser(db, rows) {
     const { salt, hash, ...rest } = u;
     return [u.id, rest];
   }));
-  for (const r of rows) r.user = r.userId != null ? byId.get(r.userId) ?? null : null;
+  for (const r of rows) {
+    r.user = r.userId != null ? byId.get(r.userId) ?? null : null;
+    // Match the old Sequelize wire shape: media's FK was snake_case (user_id).
+    r.user_id = r.userId ?? null;
+    delete r.userId;
+  }
   return rows;
 }
 

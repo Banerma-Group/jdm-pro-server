@@ -17,7 +17,7 @@ const COLUMNS = [
 
 // Attaches createdBy/updatedBy + flattened images (sort_order) + youtubeCover,
 // and drops youtubeCoverId — mirrors the old toJSON flatten.
-async function hydrate(db, vehicles) {
+async function hydrate(db, vehicles, { keepCoverId = false } = {}) {
   if (!vehicles.length) return vehicles;
   const ids = vehicles.map((v) => v.id);
 
@@ -28,6 +28,7 @@ async function hydrate(db, vehicles) {
       id: schema.media.id,
       url: schema.media.url,
       name: schema.media.name,
+      userId: schema.media.userId,
       createdAt: schema.media.createdAt,
       updatedAt: schema.media.updatedAt,
     })
@@ -43,16 +44,32 @@ async function hydrate(db, vehicles) {
 
   const coverIds = [...new Set(vehicles.map((v) => v.youtubeCoverId).filter((v) => v != null))];
   const covers = coverIds.length ? await db.select().from(schema.media).where(inArray(schema.media.id, coverIds)) : [];
-  const coverById = new Map(covers.map((c) => [c.id, c]));
+  // Embedded media use the old snake-case FK key (user_id).
+  const coverById = new Map(
+    covers.map((c) => {
+      const { userId, ...rest } = c;
+      return [c.id, { ...rest, user_id: userId ?? null }];
+    })
+  );
 
   await attachAudit(db, vehicles);
 
   for (const v of vehicles) {
     const list = (byVehicle.get(v.id) || [])
       .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
-      .map((im) => ({ id: im.id, url: im.url, name: im.name, createdAt: im.createdAt, updatedAt: im.updatedAt, sort_order: im.sortOrder ?? null }));
+      .map((im) => ({
+        id: im.id,
+        url: im.url,
+        name: im.name,
+        user_id: im.userId ?? null,
+        createdAt: im.createdAt,
+        updatedAt: im.updatedAt,
+        sort_order: im.sortOrder ?? null,
+      }));
     v.images = list;
     v.youtubeCover = v.youtubeCoverId != null ? coverById.get(v.youtubeCoverId) ?? null : null;
+    // List keeps youtube_cover_id (snake); detail/create/patch drop it (old behavior).
+    if (keepCoverId) v.youtube_cover_id = v.youtubeCoverId ?? null;
     delete v.youtubeCoverId;
   }
   return vehicles;
@@ -103,7 +120,7 @@ export async function vehiclesRoutes(db, request, url, ctx) {
       .limit(limit)
       .offset(offset);
     const [{ value: total }] = await db.select({ value: count() }).from(schema.vehicles).where(where);
-    await hydrate(db, rows);
+    await hydrate(db, rows, { keepCoverId: true });
     return json({ data: rows, pagination: pagination(limit, offset, Number(total)) });
   }
 
