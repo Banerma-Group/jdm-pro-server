@@ -15,6 +15,7 @@ export const listings = pgTable("listings", {
   source: text("source").notNull(),
   sourceListingId: text("source_listing_id").notNull(),
   url: text("url").notNull(),
+  slug: varchar("slug", { length: 255 }).notNull(), // jdm delta
   maker: text("maker"),
   model: text("model"),
   grade: text("grade"),
@@ -43,7 +44,8 @@ export const listings = pgTable("listings", {
   firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).notNull().defaultNow(),
   lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow()
 }, (t) => ({
-  bySource: uniqueIndex("listings_source_id_uq").on(t.source, t.sourceListingId)
+  bySource: uniqueIndex("listings_source_id_uq").on(t.source, t.sourceListingId),
+  bySlug: uniqueIndex("listings_slug_uq").on(t.slug)
 }));
 
 export const makers = pgTable("makers", {
