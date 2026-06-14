@@ -1,0 +1,23 @@
+{
+  "name": "@jdm-pro/crawler",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/adapters/index.js",
+  "exports": {
+    ".": "./src/adapters/index.js",
+    "./makers": "./src/makers.js",
+    "./browser": "./src/browser.js",
+    "./adapters": "./src/adapters/index.js",
+    "./criteria": "./src/criteria.js",
+    "./parseSpecs": "./src/parseSpecs.js",
+    "./dom": "./src/dom.js"
+  },
+  "dependencies": {
+    "@jdm-pro/lookup": "workspace:*",
+    "@jdm-pro/shared": "workspace:*",
+    "cloakbrowser": "^0.3.26",
+    "linkedom": "0.18.12",
+    "playwright-core": "^1.49.0"
+  }
+}
