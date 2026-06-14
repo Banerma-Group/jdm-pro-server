@@ -15,7 +15,10 @@ import { crawlerTelegramRoutes } from "./routes/crawlerTelegram.js";
 import { crawlerRoutes } from "./routes/crawler.js";
 import { buildBot } from "./telegram/bot.js";
 
-const port = Number(process.env.PORT ?? 3000);
+const DEFAULT_PORT = 8080;
+const MAX_PORT_ATTEMPTS = 100;
+const requestedPort = Number(process.env.PORT ?? DEFAULT_PORT);
+const port = Number.isFinite(requestedPort) && requestedPort > 0 ? requestedPort : DEFAULT_PORT;
 const { db } = createDb();
 
 // Public routes (no device guard, e.g. /api/auth).
@@ -50,48 +53,66 @@ function errorResponse(err, request, ctx) {
   return decorate(json({ error: String(err?.message ?? err) }, status), request, ctx);
 }
 
-const server = Bun.serve({
-  port,
-  idleTimeout: 60,
-  async fetch(request) {
-    const url = new URL(request.url);
-    debugLog("api.request", { method: request.method, pathname: url.pathname });
+async function handleRequest(request) {
+  const url = new URL(request.url);
+  debugLog("api.request", { method: request.method, pathname: url.pathname });
 
-    if (request.method === "OPTIONS") return preflight(request);
-    if (request.method === "GET" && url.pathname === "/health") {
-      return text("Bot and webhook are ready to receive traffic");
+  if (request.method === "OPTIONS") return preflight(request);
+  if (request.method === "GET" && url.pathname === "/health") {
+    return text("Bot and webhook are ready to receive traffic");
+  }
+
+  let ctx;
+  try {
+    ctx = await buildContext(db, request, url);
+  } catch (err) {
+    return errorResponse(err, request, {});
+  }
+  if (ctx.authFailed) return decorate(json({ error: "Unauthorized" }, 401), request, ctx);
+
+  try {
+    for (const route of publicRoutes) {
+      const res = await route(db, request, url, ctx);
+      if (res) return decorate(res, request, ctx);
     }
 
-    let ctx;
+    // Device guard applies to all /api/* except the public auth routes above.
+    if (url.pathname.startsWith("/api") && (await deviceConflict(request, ctx))) {
+      return decorate(json({ error: "Unauthorized" }, 401), request, ctx);
+    }
+
+    for (const route of guardedRoutes) {
+      const res = await route(db, request, url, ctx);
+      if (res) return decorate(res, request, ctx);
+    }
+  } catch (err) {
+    return errorResponse(err, request, ctx);
+  }
+
+  return decorate(json({ error: "Not found" }, 404), request, ctx);
+}
+
+function startServer(firstPort) {
+  const allowPortIncrement = process.env.NODE_ENV !== "production";
+
+  for (let attempt = 0; attempt < MAX_PORT_ATTEMPTS; attempt += 1) {
+    const candidatePort = firstPort + attempt;
     try {
-      ctx = await buildContext(db, request, url);
+      return Bun.serve({
+        port: candidatePort,
+        idleTimeout: 60,
+        fetch: handleRequest,
+      });
     } catch (err) {
-      return errorResponse(err, request, {});
+      if (err?.code !== "EADDRINUSE" || !allowPortIncrement || attempt === MAX_PORT_ATTEMPTS - 1) throw err;
+      console.warn(`Port ${candidatePort} is in use; trying ${candidatePort + 1}`);
     }
-    if (ctx.authFailed) return decorate(json({ error: "Unauthorized" }, 401), request, ctx);
+  }
 
-    try {
-      for (const route of publicRoutes) {
-        const res = await route(db, request, url, ctx);
-        if (res) return decorate(res, request, ctx);
-      }
+  throw new Error(`No available port found from ${firstPort} to ${firstPort + MAX_PORT_ATTEMPTS - 1}`);
+}
 
-      // Device guard applies to all /api/* except the public auth routes above.
-      if (url.pathname.startsWith("/api") && (await deviceConflict(request, ctx))) {
-        return decorate(json({ error: "Unauthorized" }, 401), request, ctx);
-      }
-
-      for (const route of guardedRoutes) {
-        const res = await route(db, request, url, ctx);
-        if (res) return decorate(res, request, ctx);
-      }
-    } catch (err) {
-      return errorResponse(err, request, ctx);
-    }
-
-    return decorate(json({ error: "Not found" }, 404), request, ctx);
-  },
-});
+const server = startServer(port);
 
 console.log(`jdm-pro API listening on http://localhost:${server.port}`);
 

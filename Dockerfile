@@ -52,7 +52,7 @@ RUN cd apps/api && bun -e "const { ensureBinary } = await import('cloakbrowser')
 
 COPY . .
 
-EXPOSE 3000
+EXPOSE 8080
 
 # Default command runs the API (web service). The worker + migration Render
 # services override the Docker Command with bun apps/worker/src/index.js and

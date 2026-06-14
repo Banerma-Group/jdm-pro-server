@@ -14,7 +14,7 @@
 services:
   - type: web
     name: jdm-pro-server
-    runtime: image
+    runtime: docker
     region: frankfurt
     plan: standard
     dockerfilePath: ./Dockerfile
@@ -27,7 +27,7 @@ services:
 
   - type: worker
     name: jdm-pro-worker
-    runtime: image
+    runtime: docker
     region: frankfurt
     plan: standard
     dockerfilePath: ./Dockerfile

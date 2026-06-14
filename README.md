@@ -9,7 +9,7 @@ services, etc.).
 
 ```
 apps/
-  api/      @jdm-pro/api      Bun.serve REST API + in-process Telegram bot (port 3000)
+  api/      @jdm-pro/api      Bun.serve REST API + in-process Telegram bot (port 8080)
   worker/   @jdm-pro/worker   BullMQ discovery + listing workers + scheduler
 packages/
   db/       @jdm-pro/db       Drizzle schema + migrations + createDb()
@@ -26,7 +26,7 @@ cp .env.example .env        # then fill secrets
 bun install
 bun run db:migrate          # fresh DB only — see packages/db/README.md for the
                             # shared/populated-DB baseline procedure
-bun run dev                 # API (watch)   -> http://localhost:3000
+bun run dev                 # API (watch)   -> http://localhost:8080
 bun run dev:worker          # crawler worker (separate terminal)
 bun test                    # run all package/app tests
 ```
