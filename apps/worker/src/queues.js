@@ -1,7 +1,7 @@
 import { Queue } from "bullmq";
-import { createRedisConnection, QUEUE_DISCOVERY, QUEUE_LISTING } from "@jdm-pro/shared";
+import { attachRedisErrorHandler, createRedisConnection, QUEUE_DISCOVERY, QUEUE_LISTING } from "@jdm-pro/shared";
 
-const connection = createRedisConnection();
+const connection = createRedisConnection("worker-queues");
 
 export const defaultJobOpts = {
   attempts: 3,
@@ -10,5 +10,11 @@ export const defaultJobOpts = {
   removeOnFail: 5000,
 };
 
-export const discoveryQueue = new Queue(QUEUE_DISCOVERY, { connection, defaultJobOptions: defaultJobOpts });
-export const listingQueue = new Queue(QUEUE_LISTING, { connection, defaultJobOptions: defaultJobOpts });
+export const discoveryQueue = attachRedisErrorHandler(
+  new Queue(QUEUE_DISCOVERY, { connection, defaultJobOptions: defaultJobOpts }),
+  "queue:discovery"
+);
+export const listingQueue = attachRedisErrorHandler(
+  new Queue(QUEUE_LISTING, { connection, defaultJobOptions: defaultJobOpts }),
+  "queue:listing"
+);

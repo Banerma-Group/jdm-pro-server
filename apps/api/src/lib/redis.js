@@ -1,4 +1,5 @@
 import IORedis from "ioredis";
+import { attachRedisErrorHandler } from "@jdm-pro/shared";
 
 const redisUrl = process.env.REDIS_URL || "redis://127.0.0.1:6379";
 const REDIS_RETRY_DELAY_MS = 2000;
@@ -14,9 +15,7 @@ export function getRedis() {
       maxRetriesPerRequest: null,
       retryStrategy: () => REDIS_RETRY_DELAY_MS,
     });
-    client.on("error", (error) => {
-      console.error("[redis] connection error:", error?.message || error);
-    });
+    attachRedisErrorHandler(client, "api-kv", redisUrl);
   }
   return client;
 }

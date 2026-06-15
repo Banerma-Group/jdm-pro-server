@@ -1,7 +1,7 @@
 import { Worker } from "bullmq";
 import { eq } from "drizzle-orm";
 import { schema } from "@jdm-pro/db";
-import { createRedisConnection, QUEUE_LISTING, debugLog } from "@jdm-pro/shared";
+import { attachRedisErrorHandler, createRedisConnection, QUEUE_LISTING, debugLog } from "@jdm-pro/shared";
 import { createDbCache, createOpenAiTranslator } from "@jdm-pro/lookup";
 import { getAdapter } from "@jdm-pro/crawler";
 import { fetchDocument } from "@jdm-pro/crawler/browser";
@@ -89,9 +89,10 @@ export async function processListingJob(
 export function startListingWorker({ db }) {
   const deps = { cache: createDbCache(db), openai: createOpenAiTranslator() };
   const telegram = createTelegram();
-  const connection = createRedisConnection();
-  return new Worker(QUEUE_LISTING, (job) => processListingJob(db, job, { deps, telegram }), {
+  const connection = createRedisConnection("worker:listing-client");
+  const worker = new Worker(QUEUE_LISTING, (job) => processListingJob(db, job, { deps, telegram }), {
     connection,
     concurrency: Number(process.env.WORKER_CONCURRENCY || process.env.CRAWLER_LISTING_CONCURRENCY || 2),
   });
+  return attachRedisErrorHandler(worker, "worker:listing");
 }

@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { schema } from "@jdm-pro/db";
 import {
   createRedisConnection,
+  attachRedisErrorHandler,
   QUEUE_DISCOVERY,
   JOB_DISCOVER_PRESET,
   JOB_DISCOVER_SITE,
@@ -94,9 +95,10 @@ export async function processDiscoveryJob(db, job) {
 }
 
 export function startDiscoveryWorker({ db }) {
-  const connection = createRedisConnection();
-  return new Worker(QUEUE_DISCOVERY, (job) => processDiscoveryJob(db, job), {
+  const connection = createRedisConnection("worker:discovery-client");
+  const worker = new Worker(QUEUE_DISCOVERY, (job) => processDiscoveryJob(db, job), {
     connection,
     concurrency: Number(process.env.CRAWLER_DISCOVERY_CONCURRENCY || 1),
   });
+  return attachRedisErrorHandler(worker, "worker:discovery");
 }
