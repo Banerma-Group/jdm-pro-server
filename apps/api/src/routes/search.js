@@ -51,7 +51,17 @@ async function searchListings(db, term, limit) {
 async function searchVehicles(db, term, limit) {
   const where = buildVehicleSearchWhere(term);
   const vehicles = await db
-    .select()
+    .select({
+      id: schema.vehicles.id,
+      make: schema.vehicles.make,
+      model: schema.vehicles.model,
+      year: schema.vehicles.year,
+      price: schema.vehicles.price,
+      color: schema.vehicles.color,
+      status: schema.vehicles.status,
+      stockNumber: schema.vehicles.stockNumber,
+      createdAt: schema.vehicles.createdAt,
+    })
     .from(schema.vehicles)
     .where(where)
     .orderBy(vehicleStatusRank(), vehicleSearchRank(term), desc(schema.vehicles.createdAt))

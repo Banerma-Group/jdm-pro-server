@@ -4,7 +4,7 @@ import { schema } from "@jdm-pro/db";
 const VEHICLE_TEXT_COLUMNS = [
   schema.vehicles.make,
   schema.vehicles.model,
-  schema.vehicles.notes,
+  schema.vehicles.description,
   schema.vehicles.color,
   schema.vehicles.vin,
   schema.vehicles.slug,
