@@ -1,4 +1,4 @@
-import { eq, or, ilike, inArray, count } from "drizzle-orm";
+import { eq, inArray, count } from "drizzle-orm";
 import { schema } from "@jdm-pro/db";
 import { json, body } from "../json.js";
 import { rateLimit } from "../rateLimit.js";
@@ -7,6 +7,7 @@ import { pagination } from "../util/pagination.js";
 import { attachAudit, coerceDates, pick } from "../util/audit.js";
 import * as aws from "../services/aws.js";
 import { keyFromUrl } from "../util/uploads.js";
+import { buildVehicleSearchWhere, vehicleSearchRank, vehicleStatusRank } from "../util/vehicleSearch.js";
 
 const ID_RE = /^\/api\/vehicles\/([^/]+)$/;
 const COLUMNS = [
@@ -103,21 +104,15 @@ export async function vehiclesRoutes(db, request, url, ctx) {
   // LIST
   if (url.pathname === "/api/vehicles" && request.method === "GET") {
     const { limit, offset, sort, order, search } = parseListQuery(url);
-    const where = search
-      ? or(
-          ilike(schema.vehicles.make, `%${search}%`),
-          ilike(schema.vehicles.model, `%${search}%`),
-          ilike(schema.vehicles.notes, `%${search}%`),
-          ilike(schema.vehicles.color, `%${search}%`),
-          ilike(schema.vehicles.vin, `%${search}%`),
-          ilike(schema.vehicles.slug, `%${search}%`)
-        )
-      : undefined;
+    const where = buildVehicleSearchWhere(search);
+    const orderBy = search
+      ? [vehicleStatusRank(), vehicleSearchRank(search), orderColumn(schema.vehicles, sort, order)]
+      : [vehicleStatusRank(), orderColumn(schema.vehicles, sort, order)];
     const rows = await db
       .select()
       .from(schema.vehicles)
       .where(where)
-      .orderBy(orderColumn(schema.vehicles, sort, order))
+      .orderBy(...orderBy)
       .limit(limit)
       .offset(offset);
     const [{ value: total }] = await db.select({ value: count() }).from(schema.vehicles).where(where);

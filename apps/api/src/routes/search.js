@@ -1,11 +1,10 @@
-import { or, ilike, desc, inArray, eq, sql, count } from "drizzle-orm";
+import { or, ilike, desc, inArray, eq, count } from "drizzle-orm";
 import { schema } from "@jdm-pro/db";
 import { json } from "../json.js";
 import { rateLimit } from "../rateLimit.js";
+import { buildVehicleSearchWhere, vehicleSearchRank, vehicleStatusRank } from "../util/vehicleSearch.js";
 
 const LISTING_TEXT_COLUMNS = ["maker", "model", "grade", "dealerName", "prefecture", "color", "descriptionTranslated", "descriptionOriginal"];
-const VEHICLE_TEXT_COLUMNS = ["make", "model", "notes", "color", "vin", "slug"];
-
 function ilikeAny(table, columns, term) {
   return or(...columns.map((c) => ilike(table[c], `%${term}%`)));
 }
@@ -50,12 +49,12 @@ async function searchListings(db, term, limit) {
 }
 
 async function searchVehicles(db, term, limit) {
-  const where = ilikeAny(schema.vehicles, VEHICLE_TEXT_COLUMNS, term);
+  const where = buildVehicleSearchWhere(term);
   const vehicles = await db
     .select()
     .from(schema.vehicles)
     .where(where)
-    .orderBy(desc(schema.vehicles.createdAt))
+    .orderBy(vehicleStatusRank(), vehicleSearchRank(term), desc(schema.vehicles.createdAt))
     .limit(limit);
   const [{ value: total }] = await db.select({ value: count() }).from(schema.vehicles).where(where);
 
@@ -81,6 +80,7 @@ async function searchVehicles(db, term, limit) {
       price: v.price,
       color: v.color,
       status: v.status,
+      stockNumber: v.stockNumber,
       thumbnail: coverByVehicle.get(v.id) ?? null,
     })),
     total: Number(total),
