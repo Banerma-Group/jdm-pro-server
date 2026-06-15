@@ -10,7 +10,7 @@ import { keyFromUrl } from "../util/uploads.js";
 
 const ID_RE = /^\/api\/vehicles\/([^/]+)$/;
 const COLUMNS = [
-  "make", "model", "mileage", "color", "slug", "stockNumber", "status", "vin",
+  "make", "model", "notes", "mileage", "color", "slug", "stockNumber", "status", "vin",
   "transmission", "youtubeLink", "description", "price", "isPosted", "year",
   "locale", "publishedAt", "crawlerListingId",
 ];
@@ -107,6 +107,7 @@ export async function vehiclesRoutes(db, request, url, ctx) {
       ? or(
           ilike(schema.vehicles.make, `%${search}%`),
           ilike(schema.vehicles.model, `%${search}%`),
+          ilike(schema.vehicles.notes, `%${search}%`),
           ilike(schema.vehicles.color, `%${search}%`),
           ilike(schema.vehicles.vin, `%${search}%`),
           ilike(schema.vehicles.slug, `%${search}%`)

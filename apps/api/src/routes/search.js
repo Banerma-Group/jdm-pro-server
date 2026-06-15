@@ -4,7 +4,7 @@ import { json } from "../json.js";
 import { rateLimit } from "../rateLimit.js";
 
 const LISTING_TEXT_COLUMNS = ["maker", "model", "grade", "dealerName", "prefecture", "color", "descriptionTranslated", "descriptionOriginal"];
-const VEHICLE_TEXT_COLUMNS = ["make", "model", "color", "vin", "slug"];
+const VEHICLE_TEXT_COLUMNS = ["make", "model", "notes", "color", "vin", "slug"];
 
 function ilikeAny(table, columns, term) {
   return or(...columns.map((c) => ilike(table[c], `%${term}%`)));

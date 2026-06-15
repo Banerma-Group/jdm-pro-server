@@ -68,7 +68,7 @@ const Media = new Serializer("media", {
 
 const Vehicle = new Serializer("vehicles", {
   attributes: [
-    "make", "model", "mileage", "color", "slug", "stockNumber", "status", "vin",
+    "make", "model", "notes", "mileage", "color", "slug", "stockNumber", "status", "vin",
     "transmission", "youtubeLink", "description", "price", "isPosted", "year",
     "publishedAt", "locale", "createdBy", "updatedBy",
   ],

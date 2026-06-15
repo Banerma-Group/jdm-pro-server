@@ -15,6 +15,13 @@
       "when": 1781476563087,
       "tag": "0001_eminent_namorita",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781528839497,
+      "tag": "0002_tearful_roland_deschain",
+      "breakpoints": true
     }
   ]
 }
