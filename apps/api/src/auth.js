@@ -46,11 +46,11 @@ export async function buildContext(db, request, url) {
   let user = null;
   let authFailed = false;
   if (raw) {
-    let payload = null;
+    let payload;
     try {
       payload = jwt.verify(raw.replace("Bearer ", ""), process.env.JWT_SECRET);
     } catch {
-      payload = null; // invalid/expired token -> treated as anonymous (old behavior)
+      // invalid/expired token -> treated as anonymous (old behavior)
     }
     if (payload?.userId) {
       const [found] = await db.select().from(schema.users).where(eq(schema.users.id, payload.userId)).limit(1);

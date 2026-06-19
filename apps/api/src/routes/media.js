@@ -3,17 +3,25 @@ import { schema } from "@jdm-pro/db";
 import { json, body } from "../json.js";
 import { serialize } from "../serialize.js";
 import * as aws from "../services/aws.js";
-import { parseListQuery, orderColumn } from "../util/listQuery.js";
+import { parseListQuery, orderColumn, listWhere } from "../util/listQuery.js";
 import { pagination } from "../util/pagination.js";
 import { buildS3Key, bufferToStream, keyFromUrl, singleFile } from "../util/uploads.js";
 
 const ID_RE = /^\/api\/media\/([^/]+)$/;
+const FILTERS = [
+  { param: "id", type: "number" },
+  "name",
+  "url",
+  { param: "userId", type: "number" },
+];
 
 async function attachUser(db, rows) {
   const ids = [...new Set(rows.map((r) => r.userId).filter((v) => v != null))];
   const users = ids.length ? await db.select().from(schema.users).where(inArray(schema.users.id, ids)) : [];
   const byId = new Map(users.map((u) => {
-    const { salt, hash, ...rest } = u;
+    const rest = { ...u };
+    delete rest.salt;
+    delete rest.hash;
     return [u.id, rest];
   }));
   for (const r of rows) {
@@ -25,7 +33,7 @@ async function attachUser(db, rows) {
   return rows;
 }
 
-export async function mediaRoutes(db, request, url, ctx) {
+export async function mediaRoutes(db, request, url) {
   if (url.pathname === "/api/media/presign" && request.method === "POST") {
     const data = await body(request);
     const items = Array.isArray(data?.items) ? data.items : [];
@@ -73,6 +81,7 @@ export async function mediaRoutes(db, request, url, ctx) {
       try {
         await aws.deleteObjects(keys);
       } catch (err) {
+        // eslint-disable-next-line no-console
         console.error("S3 bulk delete error:", err);
       }
     }
@@ -83,7 +92,8 @@ export async function mediaRoutes(db, request, url, ctx) {
 
   if (url.pathname === "/api/media" && request.method === "GET") {
     const { limit, offset, search } = parseListQuery(url);
-    const where = search ? or(ilike(schema.media.name, `%${search}%`), ilike(schema.media.url, `%${search}%`)) : undefined;
+    const searchWhere = search ? or(ilike(schema.media.name, `%${search}%`), ilike(schema.media.url, `%${search}%`)) : undefined;
+    const where = listWhere(schema.media, url, FILTERS, [searchWhere]);
     const rows = await db
       .select()
       .from(schema.media)

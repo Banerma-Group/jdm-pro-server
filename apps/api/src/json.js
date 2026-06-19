@@ -34,13 +34,23 @@ export async function body(request) {
   }
   const raw = await request.text();
   if (!raw) return {};
+  const contentType = request.headers.get("content-type") || "";
   if (raw.length > MAX_BODY_BYTES) {
     const err = new Error("Payload too large");
     err.status = 413;
     throw err;
   }
+  if (contentType.includes("application/x-www-form-urlencoded")) {
+    return Object.fromEntries(new URLSearchParams(raw));
+  }
   try {
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") {
+      const err = new Error("Invalid JSON body");
+      err.status = 400;
+      throw err;
+    }
+    return parsed;
   } catch {
     const err = new Error("Invalid JSON body");
     err.status = 400;

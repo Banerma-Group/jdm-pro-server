@@ -2,7 +2,7 @@ import { eq, inArray, count } from "drizzle-orm";
 import { schema } from "@jdm-pro/db";
 import { json, body } from "../json.js";
 import { rateLimit } from "../rateLimit.js";
-import { parseListQuery, orderColumn } from "../util/listQuery.js";
+import { parseListQuery, orderColumn, listWhere } from "../util/listQuery.js";
 import { pagination } from "../util/pagination.js";
 import { attachAudit, coerceDates, pick } from "../util/audit.js";
 import * as aws from "../services/aws.js";
@@ -14,6 +14,29 @@ const COLUMNS = [
   "make", "model", "notes", "mileage", "color", "slug", "stockNumber", "status", "vin",
   "transmission", "youtubeLink", "description", "price", "isPosted", "year",
   "locale", "publishedAt", "crawlerListingId",
+];
+const FILTERS = [
+  { param: "id", type: "number" },
+  "make",
+  "model",
+  "notes",
+  "mileage",
+  "color",
+  "slug",
+  { param: "stockNumber", type: "number" },
+  "status",
+  "vin",
+  "transmission",
+  "youtubeLink",
+  "description",
+  "price",
+  { param: "isPosted", type: "boolean" },
+  { param: "year", type: "number" },
+  "locale",
+  { param: "publishedAt", type: "date" },
+  "crawlerListingId",
+  { param: "createdById", type: "number" },
+  { param: "updatedById", type: "number" },
 ];
 
 // Attaches createdBy/updatedBy + flattened images (sort_order) + youtubeCover,
@@ -104,7 +127,8 @@ export async function vehiclesRoutes(db, request, url, ctx) {
   // LIST
   if (url.pathname === "/api/vehicles" && request.method === "GET") {
     const { limit, offset, sort, order, search } = parseListQuery(url);
-    const where = buildVehicleSearchWhere(search);
+    const searchWhere = buildVehicleSearchWhere(search);
+    const where = listWhere(schema.vehicles, url, FILTERS, [searchWhere]);
     const orderBy = search
       ? [vehicleStatusRank(), vehicleSearchRank(search), orderColumn(schema.vehicles, sort, order)]
       : [vehicleStatusRank(), orderColumn(schema.vehicles, sort, order)];
@@ -154,6 +178,7 @@ export async function vehiclesRoutes(db, request, url, ctx) {
       try {
         await aws.deleteObjects(keys);
       } catch (err) {
+        // eslint-disable-next-line no-console
         console.error("S3 bulk delete error:", err);
       }
     }

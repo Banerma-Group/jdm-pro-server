@@ -1,34 +1,42 @@
-const js = require('@eslint/js');
-const prettierConfig = require('eslint-config-prettier');
-const prettierPlugin = require('eslint-plugin-prettier');
+import js from "@eslint/js";
+import prettierConfig from "eslint-config-prettier";
+import prettierPlugin from "eslint-plugin-prettier";
+import nPlugin from "eslint-plugin-n";
 
-module.exports = (async () => {
-  const nPlugin = (await import('eslint-plugin-n')).default;
-
-  return [
-    js.configs.recommended,
-    nPlugin.configs['flat/recommended'],
-    prettierConfig,
-    {
-      plugins: {
-        prettier: prettierPlugin,
-      },
-      languageOptions: {
-        ecmaVersion: 2021,
-        sourceType: 'commonjs',
-      },
-      rules: {
-        'prettier/prettier': 'error',
-        'no-console': 'warn',
-        'no-unused-vars': 'warn',
+export default [
+  js.configs.recommended,
+  nPlugin.configs["flat/recommended"],
+  prettierConfig,
+  {
+    plugins: {
+      prettier: prettierPlugin,
+    },
+    languageOptions: {
+      ecmaVersion: "latest",
+      sourceType: "module",
+      globals: {
+        Bun: "readonly",
       },
     },
-    {
-      files: ['eslint.config.js'],
-      rules: {
-        'n/no-unpublished-import': 'off',
-        'n/no-unpublished-require': 'off',
-      },
+    rules: {
+      "prettier/prettier": "off",
+      "no-console": "warn",
+      "no-unused-vars": "warn",
+      "no-irregular-whitespace": ["error", { skipRegExps: true }],
+      "n/no-unsupported-features/node-builtins": "off",
+      "n/no-process-exit": "off",
     },
-  ];
-})();
+  },
+  {
+    files: ["**/*.test.js"],
+    rules: {
+      "n/no-missing-import": "off",
+    },
+  },
+  {
+    files: ["eslint.config.js"],
+    rules: {
+      "n/no-unpublished-import": "off",
+    },
+  },
+];

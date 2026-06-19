@@ -2,19 +2,32 @@ import { eq, or, ilike, count } from "drizzle-orm";
 import { schema } from "@jdm-pro/db";
 import { json, body } from "../json.js";
 import { deserialize } from "../serialize.js";
-import { parseListQuery, orderColumn } from "../util/listQuery.js";
+import { parseListQuery, orderColumn, listWhere } from "../util/listQuery.js";
 import { pagination } from "../util/pagination.js";
 import { attachAudit, coerceDates, pick } from "../util/audit.js";
 
 const ID_RE = /^\/api\/services\/([^/]+)$/;
 const COLUMNS = ["title", "description", "icon", "slug", "locale", "publishedAt"];
+const FILTERS = [
+  { param: "id", type: "number" },
+  "title",
+  "icon",
+  "slug",
+  "locale",
+  { param: "publishedAt", type: "date" },
+  { param: "createdById", type: "number" },
+  { param: "updatedById", type: "number" },
+];
 
 export async function servicesRoutes(db, request, url, ctx) {
   if (url.pathname === "/api/services" && request.method === "GET") {
     const { limit, offset, sort, order, search } = parseListQuery(url);
-    const where = search
+    const locale = url.searchParams.get("locale") || ctx.locale;
+    const searchWhere = search
       ? or(ilike(schema.services.title, `%${search}%`), ilike(schema.services.slug, `%${search}%`), ilike(schema.services.icon, `%${search}%`))
       : undefined;
+    const localeWhere = locale ? eq(schema.services.locale, locale) : undefined;
+    const where = listWhere(schema.services, url, FILTERS, [localeWhere, searchWhere]);
     const rows = await db
       .select()
       .from(schema.services)
