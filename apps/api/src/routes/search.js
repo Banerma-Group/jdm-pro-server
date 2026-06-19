@@ -3,14 +3,15 @@ import { schema } from "@jdm-pro/db";
 import { json } from "../json.js";
 import { rateLimit } from "../rateLimit.js";
 import { buildVehicleSearchWhere, vehicleSearchRank, vehicleStatusRank } from "../util/vehicleSearch.js";
+import { listWhere } from "../util/listQuery.js";
 
 const LISTING_TEXT_COLUMNS = ["maker", "model", "grade", "dealerName", "prefecture", "color", "descriptionTranslated", "descriptionOriginal"];
 function ilikeAny(table, columns, term) {
   return or(...columns.map((c) => ilike(table[c], `%${term}%`)));
 }
 
-async function searchListings(db, term, limit) {
-  const where = ilikeAny(schema.listings, LISTING_TEXT_COLUMNS, term);
+async function searchListings(db, url, term, limit) {
+  const where = listWhere(schema.listings, url, [ilikeAny(schema.listings, LISTING_TEXT_COLUMNS, term)]);
   const rows = await db
     .select({
       id: schema.listings.id,
@@ -48,8 +49,8 @@ async function searchListings(db, term, limit) {
   };
 }
 
-async function searchVehicles(db, term, limit) {
-  const where = buildVehicleSearchWhere(term);
+async function searchVehicles(db, url, term, limit) {
+  const where = listWhere(schema.vehicles, url, [buildVehicleSearchWhere(term)]);
   const vehicles = await db
     .select({
       id: schema.vehicles.id,
@@ -115,8 +116,8 @@ export async function searchRoutes(db, request, url, ctx) {
   }
 
   const [vehicles, listings] = await Promise.all([
-    type === "listings" ? Promise.resolve(empty) : searchVehicles(db, term, limit),
-    type === "vehicles" ? Promise.resolve(empty) : searchListings(db, term, limit),
+    type === "listings" ? Promise.resolve(empty) : searchVehicles(db, url, term, limit),
+    type === "vehicles" ? Promise.resolve(empty) : searchListings(db, url, term, limit),
   ]);
 
   return json({ q: term, type, vehicles, listings, limit });

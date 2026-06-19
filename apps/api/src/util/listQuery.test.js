@@ -49,6 +49,17 @@ describe("list query helpers", () => {
     expect(conditions).toHaveLength(3);
   });
 
+  test("filterConditions works across model-backed API tables", () => {
+    expect(filterConditions(schema.services, url("/api/services?locale=ja&slug=shipping"))).toHaveLength(2);
+    expect(filterConditions(schema.purchasingProcesses, url("/api/purchasing-processes?published_at=not-null&created_by_id=5"))).toHaveLength(2);
+    expect(filterConditions(schema.media, url("/api/media?user_id=3&name=cover"))).toHaveLength(2);
+    expect(filterConditions(schema.listings, url("/api/crawler/listings?source=goonet&total_price=100&total_price=200"))).toHaveLength(3);
+    expect(filterConditions(schema.filterPresets, url("/api/crawler/presets?enabled=true&telegram_chat_id=null"))).toHaveLength(2);
+    expect(filterConditions(schema.makers, url("/api/crawler/makers?value=toyota"))).toHaveLength(1);
+    expect(filterConditions(schema.notifications, url("/api/crawler/notifications?read_at=null&preset_id=abc"))).toHaveLength(2);
+    expect(filterConditions(schema.telegramConnections, url("/api/crawler/telegram/connections?chat_id=123"))).toHaveLength(1);
+  });
+
   test("filterConditions supports repeated values and numeric ranges", () => {
     const conditions = filterConditions(schema.vehicles, url("/api/vehicles?status=available&status=sold&year=2018&year=2022"), [
       "status",

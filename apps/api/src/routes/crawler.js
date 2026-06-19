@@ -1,4 +1,4 @@
-import { eq, and, gte, lte, ne, desc, asc, isNotNull, inArray } from "drizzle-orm";
+import { eq, and, gte, lte, desc, asc, isNotNull, inArray, count } from "drizzle-orm";
 import { schema } from "@jdm-pro/db";
 import { JOB_DISCOVER_PRESET, JOB_CRAWL_LISTING } from "@jdm-pro/shared";
 import { canonicalMaker } from "@jdm-pro/lookup";
@@ -10,6 +10,7 @@ import { createVehicleFromListing } from "@jdm-pro/worker/importVehicle";
 import { translateDescription } from "@jdm-pro/worker/translateDescription";
 import { json, body } from "../json.js";
 import { rateLimit } from "../rateLimit.js";
+import { listWhere } from "../util/listQuery.js";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const JOBS_QUEUE_TIMEOUT_MS = Number(process.env.JOBS_QUEUE_TIMEOUT_MS || 2000);
@@ -111,13 +112,6 @@ export async function crawlerRoutes(db, request, url, ctx) {
   // GET /listings
   if (p === "/api/crawler/listings" && method === "GET") {
     const conds = [];
-    if (sp.get("source")) conds.push(eq(schema.listings.source, sp.get("source")));
-    if (sp.get("maker")) conds.push(eq(schema.listings.maker, sp.get("maker")));
-    if (sp.get("status")) conds.push(eq(schema.listings.status, sp.get("status")));
-    if (sp.get("bodyType")) conds.push(eq(schema.listings.bodyType, sp.get("bodyType")));
-    if (sp.get("fuelType")) conds.push(eq(schema.listings.fuelType, sp.get("fuelType")));
-    if (sp.get("transmission")) conds.push(eq(schema.listings.transmission, sp.get("transmission")));
-    if (sp.get("drivetrain")) conds.push(eq(schema.listings.drivetrain, sp.get("drivetrain")));
     const between = (col, min, max) => {
       if (min != null) conds.push(gte(col, min));
       if (max != null) conds.push(lte(col, max));
@@ -128,7 +122,7 @@ export async function crawlerRoutes(db, request, url, ctx) {
 
     const limit = Math.min(parseIntQuery(sp.get("limit")) || 50, 200);
     const offset = parseIntQuery(sp.get("offset")) || 0;
-    const where = conds.length ? and(...conds) : undefined;
+    const where = listWhere(schema.listings, url, conds);
 
     const rows = await db
       .select()
@@ -137,9 +131,9 @@ export async function crawlerRoutes(db, request, url, ctx) {
       .orderBy(desc(schema.listings.lastSeenAt))
       .limit(limit)
       .offset(offset);
-    const totalRows = await db.select({ id: schema.listings.id }).from(schema.listings).where(where);
+    const [{ value: total }] = await db.select({ value: count() }).from(schema.listings).where(where);
     await attachVehicleIds(db, rows);
-    return json({ rows: rows.map(toPlain), total: totalRows.length, limit, offset });
+    return json({ rows: rows.map(toPlain), total: Number(total), limit, offset });
   }
 
   // GET /listings/:id
@@ -183,7 +177,8 @@ export async function crawlerRoutes(db, request, url, ctx) {
 
   // GET /makers
   if (p === "/api/crawler/makers" && method === "GET") {
-    const persisted = await db.select().from(schema.makers).orderBy(asc(schema.makers.label));
+    const where = listWhere(schema.makers, url);
+    const persisted = await db.select().from(schema.makers).where(where).orderBy(asc(schema.makers.label));
     if (persisted.length) {
       const byKey = new Map();
       for (const row of persisted) {
@@ -201,6 +196,7 @@ export async function crawlerRoutes(db, request, url, ctx) {
       const rows = [normalizeMakerOption(""), ...Array.from(byKey.values()).sort((a, b) => a.label.localeCompare(b.label))];
       return json({ rows });
     }
+    if (where) return json({ rows: [] });
 
     const crawlerOptions = await fetchMakerOptions();
     if (crawlerOptions.length > 1) {
@@ -229,6 +225,7 @@ export async function crawlerRoutes(db, request, url, ctx) {
 
   // GET /facets
   if (p === "/api/crawler/facets" && method === "GET") {
+    const baseWhere = listWhere(schema.listings, url);
     const FACET_COLUMNS = {
       source: schema.listings.source,
       bodyType: schema.listings.bodyType,
@@ -238,7 +235,8 @@ export async function crawlerRoutes(db, request, url, ctx) {
     };
     const entries = await Promise.all(
       Object.entries(FACET_COLUMNS).map(async ([field, col]) => {
-        const rows = await db.selectDistinct({ value: col }).from(schema.listings).where(isNotNull(col)).orderBy(asc(col));
+        const where = baseWhere ? and(baseWhere, isNotNull(col)) : isNotNull(col);
+        const rows = await db.selectDistinct({ value: col }).from(schema.listings).where(where).orderBy(asc(col));
         return [field, rows.map((r) => r.value).filter((v) => v != null && String(v).trim() !== "")];
       })
     );
@@ -247,7 +245,8 @@ export async function crawlerRoutes(db, request, url, ctx) {
 
   // GET /presets
   if (p === "/api/crawler/presets" && method === "GET") {
-    const rows = await db.select().from(schema.filterPresets).orderBy(desc(schema.filterPresets.createdAt));
+    const where = listWhere(schema.filterPresets, url);
+    const rows = await db.select().from(schema.filterPresets).where(where).orderBy(desc(schema.filterPresets.createdAt));
     return json(rows.map(toPlain));
   }
 
@@ -355,7 +354,8 @@ export async function crawlerRoutes(db, request, url, ctx) {
 
   // GET /notifications
   if (p === "/api/crawler/notifications" && method === "GET") {
-    const rows = await db.select().from(schema.notifications).orderBy(desc(schema.notifications.createdAt)).limit(100);
+    const where = listWhere(schema.notifications, url);
+    const rows = await db.select().from(schema.notifications).where(where).orderBy(desc(schema.notifications.createdAt)).limit(100);
     const listingIds = [...new Set(rows.map((r) => r.listingId).filter(Boolean))];
     const listings = listingIds.length
       ? await db.select().from(schema.listings).where(inArray(schema.listings.id, listingIds))

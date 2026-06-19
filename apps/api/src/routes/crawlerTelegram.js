@@ -3,6 +3,7 @@ import { schema } from "@jdm-pro/db";
 import { json } from "../json.js";
 import { rateLimit } from "../rateLimit.js";
 import { createConnectToken, getConnectToken } from "../lib/telegramConnect.js";
+import { listWhere } from "../util/listQuery.js";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TOKEN_RE = /^[0-9a-f]{32}$/i;
@@ -44,7 +45,8 @@ export async function crawlerTelegramRoutes(db, request, url, ctx) {
   }
 
   if (url.pathname === "/api/crawler/telegram/connections" && request.method === "GET") {
-    const rows = await db.select().from(schema.telegramConnections).orderBy(desc(schema.telegramConnections.createdAt));
+    const where = listWhere(schema.telegramConnections, url);
+    const rows = await db.select().from(schema.telegramConnections).where(where).orderBy(desc(schema.telegramConnections.createdAt));
     return json(rows);
   }
 
