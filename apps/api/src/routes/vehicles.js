@@ -15,29 +15,6 @@ const COLUMNS = [
   "transmission", "youtubeLink", "description", "price", "isPosted", "year",
   "locale", "publishedAt", "crawlerListingId",
 ];
-const FILTERS = [
-  { param: "id", type: "number" },
-  "make",
-  "model",
-  "notes",
-  "mileage",
-  "color",
-  "slug",
-  { param: "stockNumber", type: "number" },
-  "status",
-  "vin",
-  "transmission",
-  "youtubeLink",
-  "description",
-  "price",
-  { param: "isPosted", type: "boolean" },
-  { param: "year", type: "number" },
-  "locale",
-  { param: "publishedAt", type: "date" },
-  "crawlerListingId",
-  { param: "createdById", type: "number" },
-  { param: "updatedById", type: "number" },
-];
 
 // Attaches createdBy/updatedBy + flattened images (sort_order) + youtubeCover,
 // and drops youtubeCoverId — mirrors the old toJSON flatten.
@@ -128,7 +105,7 @@ export async function vehiclesRoutes(db, request, url, ctx) {
   if (url.pathname === "/api/vehicles" && request.method === "GET") {
     const { limit, offset, sort, order, search } = parseListQuery(url);
     const searchWhere = buildVehicleSearchWhere(search);
-    const where = listWhere(schema.vehicles, url, FILTERS, [searchWhere]);
+    const where = listWhere(schema.vehicles, url, [searchWhere]);
     const orderBy = search
       ? [vehicleStatusRank(), vehicleSearchRank(search), orderColumn(schema.vehicles, sort, order)]
       : [vehicleStatusRank(), orderColumn(schema.vehicles, sort, order)];

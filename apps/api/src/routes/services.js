@@ -8,16 +8,6 @@ import { attachAudit, coerceDates, pick } from "../util/audit.js";
 
 const ID_RE = /^\/api\/services\/([^/]+)$/;
 const COLUMNS = ["title", "description", "icon", "slug", "locale", "publishedAt"];
-const FILTERS = [
-  { param: "id", type: "number" },
-  "title",
-  "icon",
-  "slug",
-  "locale",
-  { param: "publishedAt", type: "date" },
-  { param: "createdById", type: "number" },
-  { param: "updatedById", type: "number" },
-];
 
 export async function servicesRoutes(db, request, url, ctx) {
   if (url.pathname === "/api/services" && request.method === "GET") {
@@ -26,8 +16,8 @@ export async function servicesRoutes(db, request, url, ctx) {
     const searchWhere = search
       ? or(ilike(schema.services.title, `%${search}%`), ilike(schema.services.slug, `%${search}%`), ilike(schema.services.icon, `%${search}%`))
       : undefined;
-    const localeWhere = locale ? eq(schema.services.locale, locale) : undefined;
-    const where = listWhere(schema.services, url, FILTERS, [localeWhere, searchWhere]);
+    const localeWhere = !url.searchParams.has("locale") && locale ? eq(schema.services.locale, locale) : undefined;
+    const where = listWhere(schema.services, url, [localeWhere, searchWhere]);
     const rows = await db
       .select()
       .from(schema.services)

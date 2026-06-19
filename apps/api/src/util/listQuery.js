@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lte } from "drizzle-orm";
 
 const CONTROL_PARAMS = new Set(["limit", "page", "sort", "order", "search"]);
+const BLACKLISTED_FILTERS = new Set(["createdAt", "created_at", "enableRLS"]);
 
 export function camel(value) {
   return String(value).replace(/_([a-z])/g, (_, c) => c.toUpperCase());
@@ -10,13 +11,27 @@ function snake(value) {
   return String(value).replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
 }
 
-// Mirrors the old qps() defaults: limit=10, page=0 (offset=page*limit),
-// sort='created_at', order DESC. search is handled per-route.
+function isColumn(value) {
+  return value && typeof value === "object" && typeof value.name === "string" && typeof value.dataType === "string";
+}
+
+function tableFilterSpecs(table, fields) {
+  if (fields?.length) {
+    return fields.map((field) => (typeof field === "string" ? { param: field } : field));
+  }
+
+  return Object.entries(table)
+    .filter(([key, value]) => isColumn(value) && !BLACKLISTED_FILTERS.has(key) && !BLACKLISTED_FILTERS.has(value.name))
+    .map(([key, column]) => ({ param: key, column, type: column.dataType }));
+}
+
+// Mirrors the frontend/old API contract: page=1 is the first page. Accept
+// legacy page=0 as first page too, so both dashboard callers stay safe.
 export function parseListQuery(url) {
   const sp = url.searchParams;
   const limit = Math.max(1, Number(sp.get("limit")) || 10);
-  const page = Math.max(0, Number(sp.get("page")) || 0);
-  const offset = page * limit;
+  const page = Math.max(1, Number(sp.get("page")) || 1);
+  const offset = (page - 1) * limit;
   const sort = sp.get("sort") || "created_at";
   const order = (sp.get("order") || "DESC").toUpperCase() === "ASC" ? "asc" : "desc";
   const search = (sp.get("search") || "").trim();
@@ -55,8 +70,7 @@ function parseValue(raw, type) {
 export function filterConditions(table, url, fields = []) {
   const sp = url.searchParams;
   const conditions = [];
-  for (const field of fields) {
-    const spec = typeof field === "string" ? { param: field } : field;
+  for (const spec of tableFilterSpecs(table, fields)) {
     const param = spec.param;
     if (!param || CONTROL_PARAMS.has(param)) continue;
     const column = spec.column || table[spec.field || camel(param)];
@@ -78,10 +92,12 @@ export function filterConditions(table, url, fields = []) {
       conditions.push(inArray(column, values));
     }
   }
+  const ids = valuesFor(sp, "ids").map((value) => parseValue(value, table.id?.dataType || "number")).filter((value) => value !== undefined);
+  if (ids.length && table.id) conditions.push(inArray(table.id, ids));
   return conditions;
 }
 
-export function listWhere(table, url, fields = [], extra = []) {
-  const conditions = [...filterConditions(table, url, fields), ...extra].filter(Boolean);
+export function listWhere(table, url, extra = []) {
+  const conditions = [...filterConditions(table, url), ...extra].filter(Boolean);
   return conditions.length ? and(...conditions) : undefined;
 }

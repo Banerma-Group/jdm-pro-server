@@ -8,12 +8,6 @@ import { pagination } from "../util/pagination.js";
 import { buildS3Key, bufferToStream, keyFromUrl, singleFile } from "../util/uploads.js";
 
 const ID_RE = /^\/api\/media\/([^/]+)$/;
-const FILTERS = [
-  { param: "id", type: "number" },
-  "name",
-  "url",
-  { param: "userId", type: "number" },
-];
 
 async function attachUser(db, rows) {
   const ids = [...new Set(rows.map((r) => r.userId).filter((v) => v != null))];
@@ -93,7 +87,7 @@ export async function mediaRoutes(db, request, url) {
   if (url.pathname === "/api/media" && request.method === "GET") {
     const { limit, offset, search } = parseListQuery(url);
     const searchWhere = search ? or(ilike(schema.media.name, `%${search}%`), ilike(schema.media.url, `%${search}%`)) : undefined;
-    const where = listWhere(schema.media, url, FILTERS, [searchWhere]);
+    const where = listWhere(schema.media, url, [searchWhere]);
     const rows = await db
       .select()
       .from(schema.media)
