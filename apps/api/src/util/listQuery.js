@@ -38,8 +38,8 @@ export function parseListQuery(url) {
   return { limit, page, offset, sort, order, search };
 }
 
-export function orderColumn(table, sort, order) {
-  const col = table[camel(sort)] || table.createdAt;
+export function orderColumn(table, sort, order, fallbackColumn = table.createdAt) {
+  const col = table[camel(sort)] || fallbackColumn;
   return order === "asc" ? asc(col) : desc(col);
 }
 

@@ -10,7 +10,7 @@ import { createVehicleFromListing } from "@jdm-pro/worker/importVehicle";
 import { translateDescription } from "@jdm-pro/worker/translateDescription";
 import { json, body } from "../json.js";
 import { rateLimit } from "../rateLimit.js";
-import { listWhere } from "../util/listQuery.js";
+import { listWhere, orderColumn } from "../util/listQuery.js";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const JOBS_QUEUE_TIMEOUT_MS = Number(process.env.JOBS_QUEUE_TIMEOUT_MS || 2000);
@@ -70,6 +70,13 @@ function parseIntQuery(value) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function parseSortQuery(sp, defaultSort, defaultOrder = "DESC") {
+  return {
+    sort: sp.get("sort") || defaultSort,
+    order: (sp.get("order") || defaultOrder).toUpperCase() === "ASC" ? "asc" : "desc",
+  };
+}
+
 function sanitizeCriteria(criteria = {}) {
   const out = {};
   if (typeof criteria.maker === "string" && criteria.maker.trim()) out.maker = criteria.maker.trim();
@@ -123,12 +130,13 @@ export async function crawlerRoutes(db, request, url, ctx) {
     const limit = Math.min(parseIntQuery(sp.get("limit")) || 50, 200);
     const offset = parseIntQuery(sp.get("offset")) || 0;
     const where = listWhere(schema.listings, url, conds);
+    const { sort, order } = parseSortQuery(sp, "lastSeenAt");
 
     const rows = await db
       .select()
       .from(schema.listings)
       .where(where)
-      .orderBy(desc(schema.listings.lastSeenAt))
+      .orderBy(orderColumn(schema.listings, sort, order, schema.listings.lastSeenAt))
       .limit(limit)
       .offset(offset);
     const [{ value: total }] = await db.select({ value: count() }).from(schema.listings).where(where);
@@ -246,7 +254,8 @@ export async function crawlerRoutes(db, request, url, ctx) {
   // GET /presets
   if (p === "/api/crawler/presets" && method === "GET") {
     const where = listWhere(schema.filterPresets, url);
-    const rows = await db.select().from(schema.filterPresets).where(where).orderBy(desc(schema.filterPresets.createdAt));
+    const { sort, order } = parseSortQuery(sp, "createdAt");
+    const rows = await db.select().from(schema.filterPresets).where(where).orderBy(orderColumn(schema.filterPresets, sort, order, schema.filterPresets.createdAt));
     return json(rows.map(toPlain));
   }
 

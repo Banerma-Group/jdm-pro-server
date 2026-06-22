@@ -1,9 +1,19 @@
 import { describe, expect, test } from "bun:test";
 import { schema } from "@jdm-pro/db";
-import { filterConditions, listWhere, parseListQuery } from "./listQuery.js";
+import { filterConditions, listWhere, orderColumn, parseListQuery } from "./listQuery.js";
 
 function url(path) {
   return new URL(path, "http://localhost");
+}
+
+function orderText(order) {
+  return order.queryChunks
+    .map((chunk) => {
+      if (chunk?.value) return chunk.value.join("");
+      if (chunk?.name) return chunk.name;
+      return "";
+    })
+    .join("");
 }
 
 describe("list query helpers", () => {
@@ -70,5 +80,17 @@ describe("list query helpers", () => {
 
   test("listWhere returns undefined when no filters are present", () => {
     expect(listWhere(schema.media, url("/api/media?limit=10"))).toBeUndefined();
+  });
+
+  test("orderColumn accepts dashboard camelCase sort fields", () => {
+    expect(orderText(orderColumn(schema.listings, "modelYear", "asc"))).toBe("model_year asc");
+    expect(orderText(orderColumn(schema.listings, "totalPrice", "desc"))).toBe("total_price desc");
+    expect(orderText(orderColumn(schema.filterPresets, "autoCreateVehicles", "asc"))).toBe("auto_create_vehicles asc");
+  });
+
+  test("orderColumn accepts snake_case aliases and falls back safely", () => {
+    expect(orderText(orderColumn(schema.filterPresets, "last_run_at", "desc"))).toBe("last_run_at desc");
+    expect(orderText(orderColumn(schema.filterPresets, "missing", "asc"))).toBe("created_at asc");
+    expect(orderText(orderColumn(schema.listings, "missing", "desc", schema.listings.lastSeenAt))).toBe("last_seen_at desc");
   });
 });
