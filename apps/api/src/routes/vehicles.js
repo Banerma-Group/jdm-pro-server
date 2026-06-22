@@ -95,14 +95,14 @@ async function loadOne(db, id) {
   return row;
 }
 
-function stockNumberDescNullsLast() {
-  return sql`${schema.vehicles.stockNumber} DESC NULLS LAST`;
+function stockNumberAscNullsLast() {
+  return sql`${schema.vehicles.stockNumber} ASC NULLS LAST`;
 }
 
 export function vehicleListOrderBy({ search, sort, order, hasExplicitSort = false } = {}) {
   const baseOrder = hasExplicitSort
     ? [orderColumn(schema.vehicles, sort, order)]
-    : [stockNumberDescNullsLast()];
+    : [stockNumberAscNullsLast()];
   const stableOrder = [...baseOrder, desc(schema.vehicles.createdAt)];
   return search ? [vehicleSearchRank(search), ...stableOrder] : stableOrder;
 }

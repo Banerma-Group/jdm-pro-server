@@ -12,11 +12,11 @@ function orderText(order) {
 }
 
 describe("vehicle list ordering", () => {
-  test("defaults to highest stock number first", () => {
+  test("defaults to lowest stock number first", () => {
     const orderBy = vehicleListOrderBy();
 
     expect(orderBy).toHaveLength(2);
-    expect(orderText(orderBy[0])).toBe("stock_number DESC NULLS LAST");
+    expect(orderText(orderBy[0])).toBe("stock_number ASC NULLS LAST");
     expect(orderText(orderBy[1])).toBe("created_at desc");
   });
 
@@ -24,7 +24,7 @@ describe("vehicle list ordering", () => {
     const orderBy = vehicleListOrderBy({ search: "skyline" });
 
     expect(orderBy).toHaveLength(3);
-    expect(orderText(orderBy[1])).toBe("stock_number DESC NULLS LAST");
+    expect(orderText(orderBy[1])).toBe("stock_number ASC NULLS LAST");
     expect(orderText(orderBy[2])).toBe("created_at desc");
   });
 });
