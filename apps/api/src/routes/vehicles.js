@@ -1,4 +1,4 @@
-import { eq, inArray, count } from "drizzle-orm";
+import { eq, inArray, count, desc, sql } from "drizzle-orm";
 import { schema } from "@jdm-pro/db";
 import { json, body } from "../json.js";
 import { rateLimit } from "../rateLimit.js";
@@ -7,7 +7,7 @@ import { pagination } from "../util/pagination.js";
 import { attachAudit, coerceDates, pick } from "../util/audit.js";
 import * as aws from "../services/aws.js";
 import { keyFromUrl } from "../util/uploads.js";
-import { buildVehicleSearchWhere, vehicleSearchRank, vehicleStatusRank } from "../util/vehicleSearch.js";
+import { buildVehicleSearchWhere, vehicleSearchRank } from "../util/vehicleSearch.js";
 
 const ID_RE = /^\/api\/vehicles\/([^/]+)$/;
 const COLUMNS = [
@@ -95,6 +95,18 @@ async function loadOne(db, id) {
   return row;
 }
 
+function stockNumberDescNullsLast() {
+  return sql`${schema.vehicles.stockNumber} DESC NULLS LAST`;
+}
+
+export function vehicleListOrderBy({ search, sort, order, hasExplicitSort = false } = {}) {
+  const baseOrder = hasExplicitSort
+    ? [orderColumn(schema.vehicles, sort, order)]
+    : [stockNumberDescNullsLast()];
+  const stableOrder = [...baseOrder, desc(schema.vehicles.createdAt)];
+  return search ? [vehicleSearchRank(search), ...stableOrder] : stableOrder;
+}
+
 export async function vehiclesRoutes(db, request, url, ctx) {
   if (!url.pathname.startsWith("/api/vehicles")) return null;
 
@@ -106,9 +118,7 @@ export async function vehiclesRoutes(db, request, url, ctx) {
     const { limit, offset, sort, order, search } = parseListQuery(url);
     const searchWhere = buildVehicleSearchWhere(search);
     const where = listWhere(schema.vehicles, url, [searchWhere]);
-    const orderBy = search
-      ? [vehicleStatusRank(), vehicleSearchRank(search), orderColumn(schema.vehicles, sort, order)]
-      : [vehicleStatusRank(), orderColumn(schema.vehicles, sort, order)];
+    const orderBy = vehicleListOrderBy({ search, sort, order, hasExplicitSort: url.searchParams.has("sort") });
     const rows = await db
       .select()
       .from(schema.vehicles)
