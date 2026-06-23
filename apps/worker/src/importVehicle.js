@@ -43,6 +43,7 @@ export function vehicleAttrsFromListing(listing) {
     status: "available",
     locale: "ja",
     isPosted: false,
+    isMain: false,
     slug: vehicleSlug(row.maker, row.model),
     crawlerListingId: row.id,
   };

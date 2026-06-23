@@ -1,0 +1,1 @@
+ALTER TABLE "vehicles" ADD COLUMN "is_main" boolean DEFAULT false NOT NULL;

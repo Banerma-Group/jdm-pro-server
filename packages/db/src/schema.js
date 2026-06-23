@@ -161,6 +161,7 @@ export const vehicles = pgTable("vehicles", {
   description: text("description"),
   price: varchar("price", { length: 255 }),
   isPosted: boolean("is_posted"),
+  isMain: boolean("is_main").notNull().default(false),
   year: integer("year"),
   locale: vehicleLocaleEnum("locale"),
   youtubeCoverId: integer("youtube_cover_id").references(() => media.id, { onDelete: "set null" }),

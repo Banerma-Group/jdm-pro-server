@@ -27,4 +27,13 @@ describe("vehicle list ordering", () => {
     expect(orderText(orderBy[1])).toBe("stock_number ASC NULLS LAST");
     expect(orderText(orderBy[2])).toBe("created_at desc");
   });
+
+  test("prioritizes main vehicles before stock number fallback", () => {
+    const orderBy = vehicleListOrderBy({ preferMain: true });
+
+    expect(orderBy).toHaveLength(3);
+    expect(orderText(orderBy[0])).toBe("CASE WHEN is_main THEN 0 ELSE 1 END");
+    expect(orderText(orderBy[1])).toBe("stock_number ASC NULLS LAST");
+    expect(orderText(orderBy[2])).toBe("created_at desc");
+  });
 });

@@ -69,7 +69,7 @@ const Media = new Serializer("media", {
 const Vehicle = new Serializer("vehicles", {
   attributes: [
     "make", "model", "notes", "mileage", "color", "slug", "stockNumber", "status", "vin",
-    "transmission", "youtubeLink", "description", "price", "isPosted", "year",
+    "transmission", "youtubeLink", "description", "price", "isPosted", "isMain", "year",
     "publishedAt", "locale", "createdBy", "updatedBy",
   ],
   youtubeCover: { ref: "id" },

@@ -12,7 +12,7 @@ import { buildVehicleSearchWhere, vehicleSearchRank } from "../util/vehicleSearc
 const ID_RE = /^\/api\/vehicles\/([^/]+)$/;
 const COLUMNS = [
   "make", "model", "notes", "mileage", "color", "slug", "stockNumber", "status", "vin",
-  "transmission", "youtubeLink", "description", "price", "isPosted", "year",
+  "transmission", "youtubeLink", "description", "price", "isPosted", "isMain", "year",
   "locale", "publishedAt", "crawlerListingId",
 ];
 
@@ -99,11 +99,23 @@ function stockNumberAscNullsLast() {
   return sql`${schema.vehicles.stockNumber} ASC NULLS LAST`;
 }
 
-export function vehicleListOrderBy({ search, sort, order, hasExplicitSort = false } = {}) {
+function featuredVehicleRank() {
+  return sql`CASE WHEN ${schema.vehicles.isMain} THEN 0 ELSE 1 END`;
+}
+
+function truthySearchParam(url, params) {
+  return params.some((param) => {
+    const value = url.searchParams.get(param);
+    return value === "true" || value === "1";
+  });
+}
+
+export function vehicleListOrderBy({ search, sort, order, hasExplicitSort = false, preferMain = false } = {}) {
   const baseOrder = hasExplicitSort
     ? [orderColumn(schema.vehicles, sort, order)]
     : [stockNumberAscNullsLast()];
   const stableOrder = [...baseOrder, desc(schema.vehicles.createdAt)];
+  if (preferMain) return [featuredVehicleRank(), ...stableOrder];
   return search ? [vehicleSearchRank(search), ...stableOrder] : stableOrder;
 }
 
@@ -118,7 +130,8 @@ export async function vehiclesRoutes(db, request, url, ctx) {
     const { limit, offset, sort, order, search } = parseListQuery(url);
     const searchWhere = buildVehicleSearchWhere(search);
     const where = listWhere(schema.vehicles, url, [searchWhere]);
-    const orderBy = vehicleListOrderBy({ search, sort, order, hasExplicitSort: url.searchParams.has("sort") });
+    const preferMain = truthySearchParam(url, ["isMain", "is_main"]);
+    const orderBy = vehicleListOrderBy({ search, sort, order, hasExplicitSort: url.searchParams.has("sort"), preferMain });
     const rows = await db
       .select()
       .from(schema.vehicles)

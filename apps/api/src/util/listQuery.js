@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lte } from "drizzle-orm";
 
-const CONTROL_PARAMS = new Set(["limit", "page", "sort", "order", "search"]);
+const CONTROL_PARAMS = new Set(["limit", "page", "sort", "order", "search", "isMain", "is_main"]);
 const BLACKLISTED_FILTERS = new Set(["createdAt", "created_at", "enableRLS"]);
 
 export function camel(value) {
