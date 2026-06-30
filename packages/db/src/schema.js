@@ -114,7 +114,7 @@ export const translationCache = pgTable("translation_cache", {
  * ========================================================================= */
 
 export const userRoleEnum = pgEnum("enum_users_role", ["client", "admin"]);
-export const vehicleStatusEnum = pgEnum("enum_vehicles_status", ["available", "sold", "soon", "ask"]);
+export const vehicleStatusEnum = pgEnum("enum_vehicles_status", ["available", "sold", "soon", "ask", "reserved"]);
 export const vehicleLocaleEnum = pgEnum("enum_vehicles_locale", ["en", "ja"]);
 // NOTE: services.locale / purchasing_processes.locale are plain varchar in the
 // live DB (only users.role + vehicles.status/locale became real PG enums), so

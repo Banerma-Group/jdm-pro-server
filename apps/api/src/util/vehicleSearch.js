@@ -123,9 +123,10 @@ export function vehicleStatusRank() {
       WHEN ${schema.vehicles.status} = 'available' THEN 0
       WHEN ${schema.vehicles.status} = 'soon' THEN 1
       WHEN ${schema.vehicles.status} = 'ask' THEN 2
-      WHEN ${schema.vehicles.status} IS NULL THEN 3
-      WHEN ${schema.vehicles.status} = 'sold' THEN 4
-      ELSE 3
+      WHEN ${schema.vehicles.status} = 'reserved' THEN 3
+      WHEN ${schema.vehicles.status} IS NULL THEN 4
+      WHEN ${schema.vehicles.status} = 'sold' THEN 5
+      ELSE 4
     END
   `;
 }
