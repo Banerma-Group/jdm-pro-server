@@ -145,12 +145,24 @@ export const media = pgTable("media", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).$defaultFn(() => new Date())
 });
 
+export const markets = pgTable("markets", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  slug: varchar("slug", { length: 255 }).notNull(),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().$defaultFn(() => new Date()),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().$defaultFn(() => new Date())
+}, (t) => ({
+  bySort: index("markets_sort_order_idx").on(t.sortOrder),
+  bySlug: uniqueIndex("markets_slug_uq").on(t.slug)
+}));
+
 export const vehicles = pgTable("vehicles", {
   id: serial("id").primaryKey(),
   make: varchar("make", { length: 255 }),
   model: varchar("model", { length: 255 }),
   notes: text("notes"),
-  market: varchar("market", { length: 255 }),
+  marketId: integer("market_id").references(() => markets.id, { onDelete: "set null" }),
   mileage: varchar("mileage", { length: 255 }),
   color: varchar("color", { length: 255 }),
   slug: varchar("slug", { length: 255 }),
@@ -174,6 +186,7 @@ export const vehicles = pgTable("vehicles", {
   publishedAt: timestamp("published_at", { withTimezone: true })
 }, (t) => ({
   byCrawlerListing: uniqueIndex("vehicles_crawler_listing_id_uq").on(t.crawlerListingId),
+  byMarket: index("vehicles_market_id_fk").on(t.marketId),
   byCreatedBy: index("vehicles_created_by_id_fk").on(t.createdById),
   byUpdatedBy: index("vehicles_updated_by_id_fk").on(t.updatedById)
 }));

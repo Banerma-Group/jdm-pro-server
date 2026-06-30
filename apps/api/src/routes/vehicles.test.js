@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { vehicleListOrderBy } from "./vehicles.js";
+import { vehicleListOrderBy, vehicleMarketWhere } from "./vehicles.js";
 
 function orderText(order) {
   return order.queryChunks
@@ -35,5 +35,18 @@ describe("vehicle list ordering", () => {
     expect(orderText(orderBy[0])).toBe("CASE WHEN is_main THEN 0 ELSE 1 END");
     expect(orderText(orderBy[1])).toBe("stock_number ASC NULLS LAST");
     expect(orderText(orderBy[2])).toBe("created_at desc");
+  });
+});
+
+describe("vehicle market filtering", () => {
+  test("builds a slug filter for market query params", () => {
+    const where = vehicleMarketWhere(new URL("http://localhost/api/vehicles?market=jdm"));
+
+    expect(orderText(where)).toContain('market_id IN (SELECT id FROM "markets" WHERE "slug" = ');
+  });
+
+  test("ignores missing and all market params", () => {
+    expect(vehicleMarketWhere(new URL("http://localhost/api/vehicles"))).toBeUndefined();
+    expect(vehicleMarketWhere(new URL("http://localhost/api/vehicles?market=all"))).toBeUndefined();
   });
 });

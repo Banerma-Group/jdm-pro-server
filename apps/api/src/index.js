@@ -7,6 +7,7 @@ import { deviceConflict } from "./webDeviceStore.js";
 import { authRoutes } from "./routes/auth.js";
 import { usersRoutes } from "./routes/users.js";
 import { vehiclesRoutes } from "./routes/vehicles.js";
+import { marketsRoutes } from "./routes/markets.js";
 import { servicesRoutes } from "./routes/services.js";
 import { purchasingProcessesRoutes } from "./routes/purchasingProcesses.js";
 import { mediaRoutes } from "./routes/media.js";
@@ -27,6 +28,7 @@ const publicRoutes = [authRoutes];
 // crawler so /api/crawler/telegram/* is claimed first.
 const guardedRoutes = [
   usersRoutes,
+  marketsRoutes,
   vehiclesRoutes,
   servicesRoutes,
   purchasingProcessesRoutes,

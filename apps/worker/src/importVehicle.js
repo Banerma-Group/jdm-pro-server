@@ -34,7 +34,6 @@ export function vehicleAttrsFromListing(listing) {
   return {
     make: row.maker || null,
     model: row.model || null,
-    market: "JDM",
     mileage: numberString(row.mileageKm),
     color: row.color || null,
     transmission: row.transmission || null,
@@ -48,6 +47,15 @@ export function vehicleAttrsFromListing(listing) {
     slug: vehicleSlug(row.maker, row.model),
     crawlerListingId: row.id,
   };
+}
+
+export async function marketIdBySlug(tx, slug) {
+  const [market] = await tx
+    .select({ id: schema.markets.id })
+    .from(schema.markets)
+    .where(eq(schema.markets.slug, slug))
+    .limit(1);
+  return market?.id ?? null;
 }
 
 export async function attachListingPhotos(tx, vehicle, listing) {
@@ -111,9 +119,12 @@ export async function createVehicleFromListing(db, listingOrId, { tx } = {}) {
       .limit(1);
     if (existingFirst.length) return { vehicle: existingFirst[0], created: false };
 
+    const values = vehicleAttrsFromListing(listing);
+    values.marketId = await marketIdBySlug(t, "jdm");
+
     const inserted = await t
       .insert(schema.vehicles)
-      .values(vehicleAttrsFromListing(listing))
+      .values(values)
       .onConflictDoNothing({ target: schema.vehicles.crawlerListingId })
       .returning();
 

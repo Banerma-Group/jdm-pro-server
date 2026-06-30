@@ -11,7 +11,7 @@ import { buildVehicleSearchWhere, vehicleSearchRank } from "../util/vehicleSearc
 
 const ID_RE = /^\/api\/vehicles\/([^/]+)$/;
 const COLUMNS = [
-  "make", "model", "notes", "market", "mileage", "color", "slug", "stockNumber", "status", "vin",
+  "make", "model", "notes", "marketId", "mileage", "color", "slug", "stockNumber", "status", "vin",
   "transmission", "youtubeLink", "description", "price", "isPosted", "isMain", "year",
   "locale", "publishedAt", "crawlerListingId",
 ];
@@ -52,6 +52,9 @@ async function hydrate(db, vehicles, { keepCoverId = false } = {}) {
       return [c.id, { ...rest, user_id: userId ?? null }];
     })
   );
+  const marketIds = [...new Set(vehicles.map((v) => v.marketId).filter((v) => v != null))];
+  const markets = marketIds.length ? await db.select().from(schema.markets).where(inArray(schema.markets.id, marketIds)) : [];
+  const marketById = new Map(markets.map((m) => [m.id, m]));
 
   await attachAudit(db, vehicles);
 
@@ -69,11 +72,18 @@ async function hydrate(db, vehicles, { keepCoverId = false } = {}) {
       }));
     v.images = list;
     v.youtubeCover = v.youtubeCoverId != null ? coverById.get(v.youtubeCoverId) ?? null : null;
+    v.market = v.marketId != null ? marketById.get(v.marketId) ?? null : null;
     // List keeps youtube_cover_id (snake); detail/create/patch drop it (old behavior).
     if (keepCoverId) v.youtube_cover_id = v.youtubeCoverId ?? null;
     delete v.youtubeCoverId;
   }
   return vehicles;
+}
+
+export function vehicleMarketWhere(url) {
+  const market = (url.searchParams.get("market") || "").trim();
+  if (!market || market === "all") return undefined;
+  return sql`${schema.vehicles.marketId} IN (SELECT id FROM "markets" WHERE "slug" = ${market})`;
 }
 
 function imageRows(vehicleId, images) {
@@ -129,7 +139,7 @@ export async function vehiclesRoutes(db, request, url, ctx) {
   if (url.pathname === "/api/vehicles" && request.method === "GET") {
     const { limit, offset, sort, order, search } = parseListQuery(url);
     const searchWhere = buildVehicleSearchWhere(search);
-    const where = listWhere(schema.vehicles, url, [searchWhere]);
+    const where = listWhere(schema.vehicles, url, [searchWhere, vehicleMarketWhere(url)]);
     const preferMain = truthySearchParam(url, ["isMain", "is_main"]);
     const orderBy = vehicleListOrderBy({ search, sort, order, hasExplicitSort: url.searchParams.has("sort"), preferMain });
     const rows = await db
