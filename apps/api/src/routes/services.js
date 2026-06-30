@@ -1,4 +1,4 @@
-import { eq, or, ilike, count } from "drizzle-orm";
+import { and, eq, or, ilike, count } from "drizzle-orm";
 import { schema } from "@jdm-pro/db";
 import { json, body } from "../json.js";
 import { deserialize } from "../serialize.js";
@@ -8,6 +8,18 @@ import { attachAudit, coerceDates, pick } from "../util/audit.js";
 
 const ID_RE = /^\/api\/services\/([^/]+)$/;
 const COLUMNS = ["title", "description", "icon", "slug", "locale", "publishedAt"];
+
+function numericId(value) {
+  return /^\d+$/.test(value) ? Number(value) : null;
+}
+
+export function serviceLookupWhere(identifier, locale) {
+  const id = numericId(identifier);
+  if (id != null) return eq(schema.services.id, id);
+
+  const slugWhere = eq(schema.services.slug, identifier);
+  return locale ? and(slugWhere, eq(schema.services.locale, locale)) : slugWhere;
+}
 
 export async function servicesRoutes(db, request, url, ctx) {
   if (url.pathname === "/api/services" && request.method === "GET") {
@@ -40,16 +52,19 @@ export async function servicesRoutes(db, request, url, ctx) {
 
   const match = url.pathname.match(ID_RE);
   if (!match) return null;
-  const id = Number(match[1]);
+  const identifier = decodeURIComponent(match[1]);
+  const id = numericId(identifier);
 
   if (request.method === "GET") {
-    const [row] = await db.select().from(schema.services).where(eq(schema.services.id, id)).limit(1);
+    const locale = url.searchParams.get("locale");
+    const [row] = await db.select().from(schema.services).where(serviceLookupWhere(identifier, locale)).limit(1);
     if (!row) return new Response(null, { status: 404 });
     await attachAudit(db, [row]);
     return json({ data: row });
   }
 
   if (request.method === "PATCH") {
+    if (id == null) return new Response(null, { status: 404 });
     const [exists] = await db.select({ id: schema.services.id }).from(schema.services).where(eq(schema.services.id, id)).limit(1);
     if (!exists) return new Response(null, { status: 404 });
     const data = coerceDates(await deserialize(await body(request)));
@@ -61,6 +76,7 @@ export async function servicesRoutes(db, request, url, ctx) {
   }
 
   if (request.method === "DELETE") {
+    if (id == null) return new Response(null, { status: 404 });
     const deleted = await db.delete(schema.services).where(eq(schema.services.id, id)).returning({ id: schema.services.id });
     if (!deleted.length) return new Response(null, { status: 404 });
     return new Response(null, { status: 204 });
