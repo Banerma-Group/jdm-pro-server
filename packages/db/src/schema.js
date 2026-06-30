@@ -162,7 +162,7 @@ export const vehicles = pgTable("vehicles", {
   make: varchar("make", { length: 255 }),
   model: varchar("model", { length: 255 }),
   notes: text("notes"),
-  marketId: integer("market_id").references(() => markets.id, { onDelete: "set null" }),
+  marketId: integer("market_id").default(1).references(() => markets.id, { onDelete: "set null" }),
   mileage: varchar("mileage", { length: 255 }),
   color: varchar("color", { length: 255 }),
   slug: varchar("slug", { length: 255 }),
