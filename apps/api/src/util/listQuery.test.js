@@ -55,8 +55,8 @@ describe("list query helpers", () => {
   });
 
   test("filterConditions infers filterable columns from the Drizzle table", () => {
-    const conditions = filterConditions(schema.vehicles, url("/api/vehicles?page=1&status=ask&limit=12&stock_number=7&isPosted=false"));
-    expect(conditions).toHaveLength(3);
+    const conditions = filterConditions(schema.vehicles, url("/api/vehicles?page=1&status=ask&limit=12&stock_number=7&isPosted=false&market=JDM"));
+    expect(conditions).toHaveLength(4);
   });
 
   test("filterConditions works across model-backed API tables", () => {

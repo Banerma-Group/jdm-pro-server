@@ -34,6 +34,7 @@ export function vehicleAttrsFromListing(listing) {
   return {
     make: row.maker || null,
     model: row.model || null,
+    market: "JDM",
     mileage: numberString(row.mileageKm),
     color: row.color || null,
     transmission: row.transmission || null,

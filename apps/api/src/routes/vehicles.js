@@ -11,7 +11,7 @@ import { buildVehicleSearchWhere, vehicleSearchRank } from "../util/vehicleSearc
 
 const ID_RE = /^\/api\/vehicles\/([^/]+)$/;
 const COLUMNS = [
-  "make", "model", "notes", "mileage", "color", "slug", "stockNumber", "status", "vin",
+  "make", "model", "notes", "market", "mileage", "color", "slug", "stockNumber", "status", "vin",
   "transmission", "youtubeLink", "description", "price", "isPosted", "isMain", "year",
   "locale", "publishedAt", "crawlerListingId",
 ];
