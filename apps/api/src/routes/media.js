@@ -59,7 +59,7 @@ export async function mediaRoutes(db, request, url) {
       }
       const publicUrl = `https://${process.env.S3_BUCKET}.s3-${process.env.S3_REGION}.amazonaws.com/${it.key}`;
       const [media] = await db.insert(schema.media).values({ url: publicUrl, name: it.name }).returning();
-      results.push(media);
+      results.push({ ok: true, item: media });
     }
     return json({ data: results }, 201);
   }

@@ -17,6 +17,8 @@ const client = new S3Client({
   accessKeyId: process.env.AWS_ACCESS_KEY,
   secretAccessKey: process.env.AWS_SECRET_KEY,
   useAccelerateEndpoint: true,
+  // Presigned PUTs do not have the browser's upload body when signing.
+  requestChecksumCalculation: "WHEN_REQUIRED",
   signatureVersion: "v4",
 });
 
@@ -29,7 +31,6 @@ function withPrefix(key) {
 export function getSignedUploadUrl(path, props = {}) {
   const command = new PutObjectCommand({
     Bucket: process.env.S3_BUCKET,
-    ACL: "public-read",
     Key: withPrefix(path),
     ...props,
   });
